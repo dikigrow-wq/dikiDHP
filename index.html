@@ -935,9 +935,245 @@ window.filterAnalyticsByMonth = async (monthVal, role) => {
 };
 
 function buildCustomerTableHTML(role, leads) {
-  return `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Data Customers – ${role==='admin'?'Admin':'B2B'}</div><div class="card-subtitle">${leads.length} total data</div></div><div class="flex gap-8 flex-wrap"><div class="filter-tabs" id="${role}FilterTabs"><button class="filter-tab active" onclick="filterTable('${role}','all',this)">Semua</button><button class="filter-tab" onclick="filterTable('${role}','cold',this)">Cold</button><button class="filter-tab" onclick="filterTable('${role}','warm',this)">Warm</button><button class="filter-tab" onclick="filterTable('${role}','hot',this)">Hot</button><button class="filter-tab" onclick="filterTable('${role}','closing',this)">Closing</button></div><div class="export-wrap"><button class="btn btn-secondary btn-sm" onclick="exportXLS('${role}')"><i class="fas fa-file-excel"></i></button><button class="btn btn-secondary btn-sm" onclick="exportPDF('${role}')"><i class="fas fa-file-pdf"></i></button></div></div></div><div class="table-wrap"><table id="${role}CustomerTable"><thead class="sticky-header"><tr><th>#</th><th>Nama</th><th>WhatsApp</th><th>Wilayah</th><th>Kategori</th><th>Status Follow-up</th><th>Tanggal</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${leads.length===0?`<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--light-gray);">Belum ada data leads</td></tr>`:leads.map((l,i)=>`<tr data-category="${l.category}"><td style="color:var(--light-gray);">${i+1}</td><td><strong>${l.name}</strong></td><td><a href="https://wa.me/${(l.phone||'').replace(/\D/g,'')}" target="_blank" style="color:var(--green);text-decoration:none;"><i class="fab fa-whatsapp"></i> ${l.phone}</a></td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="white-space:nowrap;color:var(--light-gray);">${l.lead_date}</td><td style="max-width:200px;font-size:0.78rem;color:var(--light-gray);">${(l.notes||'').slice(0,60)}${(l.notes||'').length>60?'...':''}</td><td>${(currentUser.role===role||currentUser.role==='moderator')?`<button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${l.lead_date}','${role}')"><i class="fas fa-pen"></i></button>`:''} ${currentUser.role==='moderator'?`<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLeadFromTable('${l.id}','${role}')"><i class="fas fa-trash"></i></button>`:''} <button class="btn btn-success btn-sm btn-icon" onclick="sendFollowupReminder('${l.phone}','${l.name}')" title="Follow-up via WA"><i class="fab fa-whatsapp"></i></button></td></tr>`).join('')}</tbody></table></div></div></div>`;
+  const leadsJson = JSON.stringify(leads).replace(/`/g,'&#96;').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return `<div style="animation:fadeIn 0.4s ease;">
+  <div class="card">
+    <div class="card-header" style="flex-wrap:wrap;gap:14px;">
+      <div>
+        <div class="card-title">Data Customers – ${role==='admin'?'Admin':'B2B'}</div>
+        <div class="card-subtitle" id="${role}SubTitle">${leads.length} total data</div>
+      </div>
+      <div class="flex gap-8 flex-wrap" style="align-items:center;">
+        <div class="filter-tabs" id="${role}FilterTabs">
+          <button class="filter-tab active" onclick="filterTable('${role}','all',this)">Semua</button>
+          <button class="filter-tab" onclick="filterTable('${role}','cold',this)">❄️ Cold</button>
+          <button class="filter-tab" onclick="filterTable('${role}','warm',this)">🔥 Warm</button>
+          <button class="filter-tab" onclick="filterTable('${role}','hot',this)">💥 Hot</button>
+          <button class="filter-tab" onclick="filterTable('${role}','closing',this)">✅ Closing</button>
+        </div>
+        <div class="export-wrap flex gap-8">
+          <button class="btn btn-secondary btn-sm" onclick="exportXLS('${role}')"><i class="fas fa-file-excel"></i></button>
+          <button class="btn btn-secondary btn-sm" onclick="exportPDF('${role}')"><i class="fas fa-file-pdf"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Broadcast Toolbar -->
+    <div id="${role}BroadcastBar" style="display:none;background:rgba(37,211,102,0.07);border:1px solid rgba(37,211,102,0.25);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:none;align-items:center;gap:12px;flex-wrap:wrap;">
+      <span id="${role}SelectedCount" style="font-family:var(--font-ui);font-size:0.82rem;color:#25D366;font-weight:600;"><i class="fas fa-check-square"></i> 0 dipilih</span>
+      <div style="flex:1;"></div>
+      <button class="btn btn-sm" style="background:rgba(37,211,102,0.15);color:#25D366;border:1px solid rgba(37,211,102,0.3);" onclick="openBroadcastModal('${role}','quick')"><i class="fas fa-bolt"></i> Quick Broadcast</button>
+      <button class="btn btn-sm" style="background:rgba(76,140,224,0.15);color:var(--blue);border:1px solid rgba(76,140,224,0.3);" onclick="openBroadcastModal('${role}','custom')"><i class="fas fa-edit"></i> Custom Broadcast</button>
+      <button class="btn btn-sm btn-danger" onclick="clearSelection('${role}')"><i class="fas fa-times"></i> Batal</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="${role}CustomerTable">
+        <thead class="sticky-header">
+          <tr>
+            <th style="width:40px;"><input type="checkbox" id="${role}SelectAll" onchange="toggleSelectAll('${role}',this)" style="accent-color:var(--gold);width:16px;height:16px;cursor:pointer;" title="Pilih Semua"></th>
+            <th>#</th><th>Nama</th><th>WhatsApp</th><th>Wilayah</th><th>Kategori</th><th>Status Follow-up</th><th>Tanggal</th><th>Catatan</th><th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${leads.length===0
+            ? `<tr><td colspan="10" style="text-align:center;padding:40px;color:var(--light-gray);">Belum ada data leads</td></tr>`
+            : leads.map((l,i)=>`
+            <tr data-category="${l.category}" data-id="${l.id}" data-phone="${(l.phone||'').replace(/\D/g,'')}" data-name="${(l.name||'').replace(/"/g,'&quot;')}" data-city="${l.city||''}">
+              <td><input type="checkbox" class="${role}RowCheck" data-phone="${(l.phone||'').replace(/\D/g,'')}" data-name="${(l.name||'').replace(/"/g,'&quot;')}" onchange="updateBroadcastBar('${role}')" style="accent-color:var(--gold);width:16px;height:16px;cursor:pointer;"></td>
+              <td style="color:var(--light-gray);">${i+1}</td>
+              <td><strong>${l.name}</strong></td>
+              <td><a href="https://wa.me/${(l.phone||'').replace(/\D/g,'')}" target="_blank" style="color:var(--green);text-decoration:none;"><i class="fab fa-whatsapp"></i> ${l.phone}</a></td>
+              <td>${l.city}</td>
+              <td><span class="tag tag-${l.category}">${l.category}</span></td>
+              <td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td>
+              <td style="white-space:nowrap;color:var(--light-gray);">${l.lead_date}</td>
+              <td style="max-width:160px;font-size:0.78rem;color:var(--light-gray);">${(l.notes||'').slice(0,50)}${(l.notes||'').length>50?'...':''}</td>
+              <td style="white-space:nowrap;">
+                ${(currentUser.role===role||currentUser.role==='moderator')?`<button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${l.lead_date}','${role}')"><i class="fas fa-pen"></i></button>`:''}
+                ${currentUser.role==='moderator'?`<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLeadFromTable('${l.id}','${role}')"><i class="fas fa-trash"></i></button>`:''}
+                <button class="btn btn-success btn-sm btn-icon" onclick="sendFollowupReminder('${l.phone}','${l.name}')" title="Follow-up via WA"><i class="fab fa-whatsapp"></i></button>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>`;
 }
-window.filterTable = (role, cat, btn) => { document.querySelectorAll(`#${role}FilterTabs .filter-tab`).forEach(b=>b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll(`#${role}CustomerTable tbody tr`).forEach(r => { r.style.display = (cat==='all'||r.dataset.category===cat)?'':'none'; }); };
+
+window.toggleSelectAll = (role, checkbox) => {
+  const visible = [...document.querySelectorAll(`#${role}CustomerTable tbody tr`)].filter(r => r.style.display !== 'none');
+  visible.forEach(row => {
+    const cb = row.querySelector(`.${role}RowCheck`);
+    if (cb) cb.checked = checkbox.checked;
+  });
+  updateBroadcastBar(role);
+};
+
+window.updateBroadcastBar = (role) => {
+  const checked = [...document.querySelectorAll(`.${role}RowCheck:checked`)];
+  const bar = document.getElementById(`${role}BroadcastBar`);
+  const countEl = document.getElementById(`${role}SelectedCount`);
+  if (bar) bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  if (countEl) countEl.innerHTML = `<i class="fas fa-check-square"></i> ${checked.length} dipilih`;
+  const selectAllCb = document.getElementById(`${role}SelectAll`);
+  if (selectAllCb) {
+    const allVisible = [...document.querySelectorAll(`#${role}CustomerTable tbody tr`)].filter(r=>r.style.display!=='none');
+    const allChecks = allVisible.map(r=>r.querySelector(`.${role}RowCheck`)).filter(Boolean);
+    selectAllCb.indeterminate = checked.length > 0 && checked.length < allChecks.length;
+    selectAllCb.checked = allChecks.length > 0 && checked.length === allChecks.length;
+  }
+};
+
+window.clearSelection = (role) => {
+  document.querySelectorAll(`.${role}RowCheck`).forEach(cb => cb.checked = false);
+  const sa = document.getElementById(`${role}SelectAll`); if (sa) { sa.checked = false; sa.indeterminate = false; }
+  updateBroadcastBar(role);
+};
+
+window.filterTable = (role, cat, btn) => {
+  document.querySelectorAll(`#${role}FilterTabs .filter-tab`).forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  let visible = 0;
+  document.querySelectorAll(`#${role}CustomerTable tbody tr`).forEach(r => {
+    const show = (cat==='all'||r.dataset.category===cat);
+    r.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  // Uncheck hidden rows
+  document.querySelectorAll(`#${role}CustomerTable tbody tr`).forEach(r => {
+    if (r.style.display === 'none') { const cb = r.querySelector(`.${role}RowCheck`); if (cb) cb.checked = false; }
+  });
+  updateBroadcastBar(role);
+  const sub = document.getElementById(`${role}SubTitle`);
+  if (sub) sub.textContent = cat==='all' ? `${document.querySelectorAll(`#${role}CustomerTable tbody tr`).length} total data` : `${visible} data kategori ${cat}`;
+};
+
+const QUICK_TEMPLATES = [
+  { id:'follow1', label:'Follow-up Umum', icon:'💬', text:'Halo {nama}, saya dari DHP Creative ingin menindaklanjuti diskusi kita sebelumnya. Ada yang bisa saya bantu? 😊' },
+  { id:'promo1', label:'Promo Spesial', icon:'🎉', text:'Halo {nama}! Ada penawaran spesial dari DHP Creative khusus untuk Anda hari ini. Jangan sampai terlewat! 🔥 Hubungi kami sekarang untuk info lebih lanjut.' },
+  { id:'closing1', label:'Closing Reminder', icon:'✅', text:'Halo {nama}, ini adalah pengingat dari DHP Creative. Yuk kita selesaikan kerja samanya! Tim kami siap membantu Anda. 💼' },
+  { id:'warm1', label:'Nurturing Warm', icon:'🌡️', text:'Halo {nama}, semoga hari Anda menyenangkan! Kami dari DHP Creative ingin berbagi informasi terbaru yang mungkin bermanfaat untuk bisnis Anda. 🚀' },
+  { id:'reactivate', label:'Reaktivasi', icon:'🔁', text:'Halo {nama}, sudah lama tidak bersapa! DHP Creative hadir kembali dengan layanan terbaru. Ada yang bisa kami bantu untuk bisnis Anda? 😊' },
+];
+
+window.openBroadcastModal = (role, mode) => {
+  const checked = [...document.querySelectorAll(`.${role}RowCheck:checked`)];
+  if (checked.length === 0) { showToast('Pilih minimal 1 kontak dulu', 'error'); return; }
+  const contacts = checked.map(cb => ({ phone: cb.dataset.phone, name: cb.dataset.name }));
+  const modalId = 'broadcastModal';
+  const isQuick = mode === 'quick';
+
+  const quickTemplatesHtml = QUICK_TEMPLATES.map(t => `
+    <div class="broadcast-template-card" data-id="${t.id}" onclick="selectBroadcastTemplate(this,'${t.id}')" style="border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;cursor:pointer;transition:var(--transition);background:rgba(255,255,255,0.02);margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="font-size:1.2rem;">${t.icon}</span>
+        <span style="font-family:var(--font-ui);font-size:0.82rem;font-weight:600;color:var(--white);">${t.label}</span>
+        <span class="broadcast-check-icon" style="margin-left:auto;color:var(--green);display:none;"><i class="fas fa-check-circle"></i></span>
+      </div>
+      <div style="font-size:0.78rem;color:var(--light-gray);line-height:1.5;">${t.text}</div>
+    </div>`).join('');
+
+  showModal(modalId, `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="fab fa-whatsapp" style="color:#25D366;"></i> ${isQuick ? 'Quick Broadcast' : 'Custom Broadcast'}</div>
+        <div style="font-size:0.78rem;color:var(--light-gray);margin-top:4px;">${contacts.length} kontak dipilih • via WhatsApp</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <!-- Kontak Preview -->
+      <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;margin-bottom:20px;">
+        <div style="font-family:var(--font-ui);font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);margin-bottom:10px;">Daftar Kontak (${contacts.length})</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:100px;overflow-y:auto;">
+          ${contacts.map(c=>`<span style="background:rgba(37,211,102,0.1);border:1px solid rgba(37,211,102,0.25);color:#25D366;border-radius:20px;padding:3px 10px;font-size:0.75rem;font-family:var(--font-ui);"><i class="fab fa-whatsapp"></i> ${c.name||c.phone}</span>`).join('')}
+        </div>
+      </div>
+
+      ${isQuick ? `
+      <!-- Quick: pilih template -->
+      <div style="font-family:var(--font-ui);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;"><i class="fas fa-bolt"></i> Pilih Template Pesan</div>
+      <div id="quickTemplateList">${quickTemplatesHtml}</div>
+      <div style="font-family:var(--font-ui);font-size:0.7rem;color:var(--light-gray);margin-top:8px;margin-bottom:16px;"><i class="fas fa-info-circle" style="color:var(--gold);"></i> Gunakan <code style="color:var(--gold);">{nama}</code> untuk nama kontak otomatis</div>
+      <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:12px;margin-top:4px;">
+        <div style="font-size:0.72rem;color:var(--light-gray);margin-bottom:6px;">Preview pesan:</div>
+        <div id="broadcastPreview" style="font-size:0.83rem;color:var(--white);line-height:1.6;font-style:italic;">— pilih template di atas —</div>
+      </div>
+      ` : `
+      <!-- Custom: tulis sendiri -->
+      <div style="font-family:var(--font-ui);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--blue);margin-bottom:12px;"><i class="fas fa-edit"></i> Tulis Pesan Custom</div>
+      <div class="form-group">
+        <label class="form-label">Pesan Broadcast</label>
+        <textarea class="form-textarea" id="customBroadcastMsg" style="min-height:130px;" placeholder="Tulis pesan di sini... Gunakan {nama} untuk nama kontak otomatis.&#10;&#10;Contoh: Halo {nama}, ada penawaran spesial untuk Anda!"></textarea>
+      </div>
+      <div style="font-size:0.72rem;color:var(--light-gray);margin-top:-8px;"><i class="fas fa-info-circle" style="color:var(--blue);"></i> <code style="color:var(--blue);">{nama}</code> akan diganti otomatis dengan nama tiap kontak</div>
+      `}
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div style="font-size:0.78rem;color:var(--light-gray);"><i class="fas fa-info-circle"></i> Akan membuka ${contacts.length} tab WhatsApp Web</div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" onclick="closeModal('${modalId}')">Batal</button>
+        <button class="btn btn-success" onclick="executeBroadcast('${modalId}','${mode}',${JSON.stringify(contacts).replace(/"/g,'&quot;')})">
+          <i class="fab fa-whatsapp"></i> Kirim ke ${contacts.length} Kontak
+        </button>
+      </div>
+    </div>
+  `, 'modal-lg');
+
+  // Store contacts for use
+  window._broadcastContacts = contacts;
+  window._broadcastMode = mode;
+  window._selectedTemplateText = '';
+};
+
+window.selectBroadcastTemplate = (el, id) => {
+  document.querySelectorAll('.broadcast-template-card').forEach(c => {
+    c.style.border = '1px solid rgba(255,255,255,0.08)';
+    c.style.background = 'rgba(255,255,255,0.02)';
+    c.querySelector('.broadcast-check-icon').style.display = 'none';
+  });
+  el.style.border = '1px solid rgba(37,211,102,0.5)';
+  el.style.background = 'rgba(37,211,102,0.07)';
+  el.querySelector('.broadcast-check-icon').style.display = 'inline';
+  const tpl = QUICK_TEMPLATES.find(t=>t.id===id);
+  if (tpl) {
+    window._selectedTemplateText = tpl.text;
+    const preview = document.getElementById('broadcastPreview');
+    if (preview) preview.textContent = tpl.text.replace('{nama}','[Nama Kontak]');
+  }
+};
+
+window.executeBroadcast = (modalId, mode, contactsAttr) => {
+  let contacts;
+  try { contacts = typeof contactsAttr === 'string' ? JSON.parse(contactsAttr.replace(/&quot;/g,'"')) : contactsAttr; } catch(e) { contacts = window._broadcastContacts || []; }
+  let msgTemplate = '';
+  if (mode === 'quick') {
+    msgTemplate = window._selectedTemplateText || '';
+    if (!msgTemplate) { showToast('Pilih template pesan dulu!', 'error'); return; }
+  } else {
+    const customEl = document.getElementById('customBroadcastMsg');
+    msgTemplate = customEl ? customEl.value.trim() : '';
+    if (!msgTemplate) { showToast('Tulis pesan broadcast dulu!', 'error'); return; }
+  }
+  closeModal(modalId);
+  let sent = 0;
+  const sendNext = () => {
+    if (sent >= contacts.length) { showToast(`✅ Broadcast selesai! ${sent} pesan dikirim.`, 'success'); return; }
+    const c = contacts[sent];
+    const msg = msgTemplate.replace(/\{nama\}/gi, c.name || 'Pelanggan');
+    const phone = (c.phone || '').replace(/\D/g,'');
+    if (phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    sent++;
+    showToast(`Membuka WhatsApp ${sent}/${contacts.length}...`, 'info', 1500);
+    if (sent < contacts.length) setTimeout(sendNext, 1200);
+    else setTimeout(() => showToast(`✅ Broadcast selesai! ${sent} pesan dikirim.`, 'success'), 1500);
+  };
+  showToast(`Memulai broadcast ke ${contacts.length} kontak...`, 'info');
+  setTimeout(sendNext, 500);
+};
+
 window.deleteLeadFromTable = async (leadId, role) => { if (!confirm('Hapus leads ini?')) return; if (db) await db.from('leads').delete().eq('id', leadId); showToast('Lead dihapus', 'info'); if (role==='admin') await renderAdminTable(); else await renderB2BTable(); };
 window.sendFollowupReminder = (phone, name) => { window.open(`https://wa.me/${(phone||'').replace(/\D/g,'')}?text=${encodeURIComponent(`Halo ${name}, saya dari DHP Creative. Ingin menindaklanjuti diskusi kita sebelumnya. Ada yang bisa saya bantu? 😊`)}`, '_blank'); };
 
