@@ -212,6 +212,29 @@ tr:last-child td { border-bottom: none; }
 .toast-error { background: rgba(224,82,82,0.95); color: white; }
 .toast-info { background: rgba(201,168,76,0.95); color: var(--black); }
 .toast-warning { background: rgba(224,139,76,0.95); color: white; }
+@keyframes popupSlideIn { 0% { transform: translateX(120%) scale(0.9); opacity: 0; } 60% { transform: translateX(-8px) scale(1.02); } 100% { transform: translateX(0) scale(1); opacity: 1; } }
+@keyframes popupSlideOut { 0% { transform: translateX(0) scale(1); opacity: 1; } 100% { transform: translateX(120%) scale(0.9); opacity: 0; } }
+@keyframes popupProgress { from { width: 100%; } to { width: 0%; } }
+@keyframes popupIconPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+#popupNotifContainer { position: fixed; top: 80px; right: 24px; z-index: 400; display: flex; flex-direction: column; gap: 12px; pointer-events: none; max-width: 380px; }
+.popup-notif { pointer-events: all; background: linear-gradient(135deg, var(--dark2) 0%, var(--dark) 100%); border: 1px solid rgba(201,168,76,0.35); border-radius: 14px; box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(201,168,76,0.08), inset 0 1px 0 rgba(201,168,76,0.15); overflow: hidden; position: relative; animation: popupSlideIn 0.5s cubic-bezier(0.34,1.56,0.64,1); width: 360px; max-width: calc(100vw - 32px); }
+.popup-notif.closing { animation: popupSlideOut 0.35s ease forwards; }
+.popup-notif-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-light)); }
+.popup-notif-body { display: flex; gap: 14px; padding: 16px 18px 14px; align-items: flex-start; }
+.popup-notif-icon { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, rgba(201,168,76,0.2), rgba(201,168,76,0.08)); border: 1px solid rgba(201,168,76,0.3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; animation: popupIconPulse 1.6s ease-in-out infinite; }
+.popup-notif-icon i { font-size: 1.05rem; color: var(--gold); }
+.popup-notif-content { flex: 1; min-width: 0; }
+.popup-notif-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.popup-notif-label { font-family: var(--font-ui); font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+.popup-notif-close { background: none; border: none; color: var(--light-gray); cursor: pointer; padding: 2px 6px; font-size: 0.85rem; border-radius: 4px; transition: var(--transition); flex-shrink: 0; }
+.popup-notif-close:hover { color: var(--white); background: rgba(255,255,255,0.08); }
+.popup-notif-title { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; color: var(--white); margin-bottom: 4px; line-height: 1.3; }
+.popup-notif-message { font-size: 0.82rem; color: var(--white2); line-height: 1.5; word-wrap: break-word; }
+.popup-notif-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 0.7rem; color: var(--light-gray); }
+.popup-notif-meta i { font-size: 0.65rem; color: var(--gold); }
+.popup-notif-time-relative { color: var(--gold-light); font-weight: 500; }
+.popup-notif-progress { position: absolute; bottom: 0; left: 0; height: 2px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); animation: popupProgress 8s linear forwards; }
+.popup-notif:hover .popup-notif-progress { animation-play-state: paused; }
 .chart-wrap { position: relative; width: 100%; }
 .chart-wrap canvas { max-width: 100%; }
 .leads-progress { background: var(--dark3); border-radius: var(--radius-sm); padding: 16px 20px; margin-bottom: 20px; border: 1px solid rgba(201,168,76,0.15); }
@@ -251,6 +274,8 @@ tr:last-child td { border-bottom: none; }
   .topbar { padding: 12px 16px; }
   #notifPanel { right: 8px; }
   #toastContainer { right: 12px; bottom: 12px; }
+  #popupNotifContainer { right: 12px; left: 12px; top: 70px; max-width: none; }
+  .popup-notif { width: 100%; }
 }
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -434,6 +459,7 @@ tr:last-child td { border-bottom: none; }
 </div>
 
 <div id="toastContainer"></div>
+<div id="popupNotifContainer"></div>
 <div id="modalsContainer"></div>
 
 <script>
@@ -455,6 +481,8 @@ let currentModYear = new Date().getFullYear();
 let chartsMap = {};
 let notifInterval = null;
 let unreadNotifs = 0;
+let shownPopupIds = new Set();
+let firstNotifLoad = true;
 
 const PASSWORDS = { moderator: '11223344', admin: '321', b2b: '123' };
 const ROLE_META = {
@@ -541,12 +569,14 @@ function enterApp(role) {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   setupSidebar(role);
-  if (db) { loadNotifications(); notifInterval = setInterval(loadNotifications, 30000); }
+  if (db) { loadNotifications(); notifInterval = setInterval(loadNotifications, 15000); }
   showToast(`Selamat datang, ${ROLE_META[role].name}!`, 'success');
 }
 function logout() {
   if (notifInterval) clearInterval(notifInterval);
   currentUser = null; selectedRole = null;
+  shownPopupIds.clear(); firstNotifLoad = true;
+  document.getElementById('popupNotifContainer').innerHTML = '';
   Object.values(chartsMap).forEach(c => { try { c.destroy(); } catch(e){} });
   chartsMap = {};
   document.getElementById('app').style.display = 'none';
@@ -1016,6 +1046,7 @@ async function sendNotification() {
 window.quickNotif = async (title, target, message) => { if (db) await db.from('notifications').insert([{ title, message, target_role: target, icon: 'fa-bolt', icon_bg: 'rgba(201,168,76,0.15)', icon_color: '#C9A84C', is_read: false, created_at: new Date().toISOString() }]); showToast(`Reminder dikirim ke ${target}!`, 'success'); await renderModNotifications(); };
 window.deleteNotif = async (id) => { if (db) await db.from('notifications').delete().eq('id', id); await renderModNotifications(); };
 window.clearAllNotifs = async () => { if (!confirm('Hapus semua notifikasi?')) return; if (db) await db.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000'); showToast('Notifikasi dihapus', 'info'); await renderModNotifications(); };
+window.dismissPopupNotif = dismissPopupNotif;
 
 async function renderModLeads() {
   const [adminLeads, b2bLeads] = await Promise.all([getLeads('admin'), getLeads('b2b')]);
@@ -1054,6 +1085,95 @@ async function renderGuestTasks() {
   document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Task Admin</div><div class="card-subtitle">${adminLeads.length} entri</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${adminLeads.map((l,i)=>`<tr><td>${i+1}</td><td>${l.name}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="color:var(--light-gray);">${l.lead_date}</td></tr>`).join('')}</tbody></table></div></div><div class="card" style="margin-top:20px;"><div class="card-header"><div><div class="card-title">Task B2B</div><div class="card-subtitle">${b2bLeads.length} entri</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${b2bLeads.map((l,i)=>`<tr><td>${i+1}</td><td>${l.name}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="color:var(--light-gray);">${l.lead_date}</td></tr>`).join('')}</tbody></table></div></div></div>`;
 }
 
+function getRelativeTime(dateStr) {
+  const now = new Date(); const then = new Date(dateStr); const diffMs = now - then; const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 0) return 'baru saja';
+  if (diffSec < 10) return 'baru saja';
+  if (diffSec < 60) return `${diffSec} detik yang lalu`;
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} menit yang lalu`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr} jam yang lalu`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay} hari yang lalu`;
+  const diffWeek = Math.floor(diffDay / 7);
+  if (diffWeek < 4) return `${diffWeek} minggu yang lalu`;
+  const diffMonth = Math.floor(diffDay / 30);
+  if (diffMonth < 12) return `${diffMonth} bulan yang lalu`;
+  const diffYear = Math.floor(diffDay / 365);
+  return `${diffYear} tahun yang lalu`;
+}
+
+function showPopupNotif(notif) {
+  const container = document.getElementById('popupNotifContainer');
+  if (!container) return;
+  const popup = document.createElement('div');
+  popup.className = 'popup-notif';
+  popup.dataset.notifId = notif.id;
+  const iconClass = notif.icon || 'fa-bell';
+  const iconColor = notif.icon_color || 'var(--gold)';
+  const iconBg = notif.icon_bg || 'rgba(201,168,76,0.15)';
+  const relativeTime = getRelativeTime(notif.created_at);
+  const fullTime = new Date(notif.created_at).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+  popup.innerHTML = `
+    <div class="popup-notif-accent"></div>
+    <div class="popup-notif-body">
+      <div class="popup-notif-icon" style="background:${iconBg};border-color:${iconColor === 'var(--gold)' ? 'rgba(201,168,76,0.3)' : iconColor + '55'};">
+        <i class="fas ${iconClass}" style="color:${iconColor};"></i>
+      </div>
+      <div class="popup-notif-content">
+        <div class="popup-notif-header">
+          <div class="popup-notif-label"><i class="fas fa-bolt" style="font-size:0.6rem;"></i> Notifikasi Baru</div>
+          <button class="popup-notif-close" onclick="dismissPopupNotif(this)" aria-label="Tutup"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="popup-notif-title">${escapeHtml(notif.title || 'Notifikasi')}</div>
+        <div class="popup-notif-message">${escapeHtml(notif.message || '')}</div>
+        <div class="popup-notif-meta">
+          <i class="fas fa-clock"></i>
+          <span class="popup-notif-time-relative">${relativeTime}</span>
+          <span style="color:var(--gray2);">·</span>
+          <span>${fullTime}</span>
+        </div>
+      </div>
+    </div>
+    <div class="popup-notif-progress"></div>
+  `;
+  popup.addEventListener('click', (e) => {
+    if (e.target.closest('.popup-notif-close')) return;
+    if (db && !notif.is_read) { db.from('notifications').update({ is_read: true }).eq('id', notif.id).then(() => loadNotifications()); }
+    dismissPopupNotif(popup.querySelector('.popup-notif-close'));
+    const panel = document.getElementById('notifPanel');
+    if (panel) { panel.classList.add('active'); loadNotifications(); }
+  });
+  container.appendChild(popup);
+  // Limit to 3 popups visible at once - remove oldest
+  while (container.children.length > 3) {
+    const oldest = container.firstElementChild;
+    if (oldest && !oldest.classList.contains('closing')) oldest.classList.add('closing');
+    setTimeout(() => { if (oldest && oldest.parentNode) oldest.remove(); }, 350);
+    break;
+  }
+  // Auto dismiss after 8 seconds
+  setTimeout(() => {
+    if (popup.parentNode) {
+      popup.classList.add('closing');
+      setTimeout(() => { if (popup.parentNode) popup.remove(); }, 350);
+    }
+  }, 8000);
+}
+
+function dismissPopupNotif(btn) {
+  const popup = btn.closest('.popup-notif');
+  if (!popup) return;
+  popup.classList.add('closing');
+  setTimeout(() => { if (popup.parentNode) popup.remove(); }, 350);
+}
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+}
+
 async function loadNotifications() {
   if (!db || !currentUser) return;
   const notifs = await getNotifications(currentUser.role); const unread = notifs.filter(n => !n.is_read); unreadNotifs = unread.length;
@@ -1061,7 +1181,28 @@ async function loadNotifications() {
   if (dot) dot.style.display = unreadNotifs > 0 ? 'block' : 'none';
   if (navBadge) { navBadge.style.display = unreadNotifs > 0 ? 'block' : 'none'; navBadge.textContent = unreadNotifs; }
   const list = document.getElementById('notifList');
-  if (list && notifs.length > 0) list.innerHTML = notifs.map(n => `<div class="notif-item ${n.is_read?'':'unread'}" onclick="markNotifRead('${n.id}')"><div class="notif-icon-wrap" style="background:${n.icon_bg||'rgba(201,168,76,0.15)'}"><i class="fas ${n.icon||'fa-bell'}" style="color:${n.icon_color||'var(--gold)'}"></i></div><div><div class="notif-text"><strong>${n.title}</strong><br>${n.message}</div><div class="notif-time">${new Date(n.created_at).toLocaleString('id-ID')}</div></div>${!n.is_read?`<div style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:6px;"></div>`:''}</div>`).join('');
+  if (list && notifs.length > 0) list.innerHTML = notifs.map(n => `<div class="notif-item ${n.is_read?'':'unread'}" onclick="markNotifRead('${n.id}')"><div class="notif-icon-wrap" style="background:${n.icon_bg||'rgba(201,168,76,0.15)'}"><i class="fas ${n.icon||'fa-bell'}" style="color:${n.icon_color||'var(--gold)'}"></i></div><div style="flex:1;min-width:0;"><div class="notif-text"><strong>${escapeHtml(n.title)}</strong><br>${escapeHtml(n.message)}</div><div class="notif-time"><i class="fas fa-clock" style="font-size:0.6rem;margin-right:4px;color:var(--gold);"></i>${getRelativeTime(n.created_at)} · ${new Date(n.created_at).toLocaleString('id-ID',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'})}</div></div>${!n.is_read?`<div style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:6px;"></div>`:''}</div>`).join('');
+  // Pop-up logic: show popups for unread notifications NOT yet shown
+  // On first load, mark existing unread as already shown (avoid spamming on login) but still show the most recent one if it's very fresh (<2 min)
+  if (firstNotifLoad) {
+    const veryRecent = unread.filter(n => (new Date() - new Date(n.created_at)) < 120000); // <2 min
+    unread.forEach(n => shownPopupIds.add(n.id));
+    // Show the most recent if very fresh
+    if (veryRecent.length > 0) {
+      const latest = veryRecent[0]; // already sorted desc
+      shownPopupIds.add(latest.id);
+      showPopupNotif(latest);
+    }
+    firstNotifLoad = false;
+  } else {
+    // Show popups for any new unread notifications (in chronological order, oldest first)
+    const newUnread = unread.filter(n => !shownPopupIds.has(n.id)).reverse();
+    newUnread.forEach((n, i) => {
+      shownPopupIds.add(n.id);
+      // Stagger multiple popups slightly
+      setTimeout(() => showPopupNotif(n), i * 600);
+    });
+  }
 }
 function toggleNotifPanel() { const panel = document.getElementById('notifPanel'); panel.classList.toggle('active'); if (panel.classList.contains('active')) loadNotifications(); }
 async function markNotifRead(id) { if (db) await db.from('notifications').update({ is_read: true }).eq('id', id); await loadNotifications(); }
