@@ -308,6 +308,9 @@ tr:last-child td { border-bottom: none; }
 /* ===== FITUR BARU: AD-LOCK & MISSING LEADS ===== */
 .cal-day.no-ad-locked { opacity: 0.55; cursor: not-allowed !important; }
 .cal-day.no-ad-locked:hover { border-color: rgba(255,255,255,0.05) !important; background: rgba(255,255,255,0.03) !important; transform: none !important; }
+/* Hari masa depan yg ada iklan → tampil dengan border emas tipis, ikon kalender */
+.cal-day.no-ad-locked.has-ads { opacity: 0.7; border-color: rgba(201,168,76,0.25) !important; background: rgba(201,168,76,0.04) !important; cursor: not-allowed !important; }
+.cal-day.no-ad-locked.has-ads:hover { border-color: rgba(201,168,76,0.35) !important; background: rgba(201,168,76,0.07) !important; transform: none !important; }
 .cal-day.ad-exists-no-leads { border-color: var(--red) !important; background: rgba(224,82,82,0.07) !important; animation: missingLeadsPulse 2s ease-in-out infinite; }
 @keyframes missingLeadsPulse { 0%,100%{box-shadow:0 0 0 0 rgba(224,82,82,0);} 50%{box-shadow:0 0 0 4px rgba(224,82,82,0.2);} }
 .cal-day.ad-exists-no-leads .day-num { color: var(--red) !important; }
@@ -1374,10 +1377,25 @@ function buildCalendarHTMLEnhanced(month, year, leadsMap, adsMap, role, prefix, 
     }
     const hasAd = dayAds.length > 0;
     const hasLeads = dayLeads.length > 0;
+    const isFuture = dateStr > todayStr;
 
-    // Logika lock & missing
-    const isLocked = isRoleView && !isMod && !hasAd && (isToday || isPast);
-    const isMissingLeads = isRoleView && !isMod && hasAd && !hasLeads && (isToday || isPast);
+    /**
+     * ATURAN AKSES LEADS (untuk role admin/b2b, bukan moderator):
+     *
+     * BISA INPUT  → hari ini ATAU hari lampau  +  ada iklan  +  belum ada leads
+     * LOCKED      → semua hari masa depan (meski ada iklan)
+     * LOCKED      → hari ini / lampau tanpa iklan
+     * SUDAH DIISI → ada iklan + sudah ada leads (tampil normal, tidak bisa tambah di lampau)
+     * MISSING 🔴  → ada iklan + belum ada leads + bukan masa depan
+     */
+    const canInputLeads  = isRoleView && !isMod && hasAd && !isFuture; // hari ini atau lampau + ada iklan
+    const isLocked       = isRoleView && !isMod && (!hasAd || isFuture);  // tidak ada iklan ATAU masa depan
+    const isFutureWithAd = isRoleView && !isMod && hasAd && isFuture;     // masa depan dgn iklan → sub-jenis locked
+    const isMissingLeads = isRoleView && !isMod && hasAd && !hasLeads && !isFuture; // wajib isi
+
+    let lockReason = '';
+    if (isFutureWithAd) lockReason = 'Iklan sudah dijadwalkan – leads hanya bisa diisi pada hari H';
+    else if (isLocked)  lockReason = hasAd ? 'Iklan sudah dijadwalkan – leads hanya bisa diisi pada hari H' : (isFuture ? 'Hari belum tiba' : 'Tidak ada iklan – leads tidak bisa diinput');
 
     let classes = 'cal-day';
     if (isToday) classes += ' today';
@@ -1386,6 +1404,7 @@ function buildCalendarHTMLEnhanced(month, year, leadsMap, adsMap, role, prefix, 
     if (hasAd) classes += ' has-ads';
     if (isLocked) classes += ' no-ad-locked';
     if (isMissingLeads) classes += ' ad-exists-no-leads';
+    if (isFuture && !isRoleView) classes += ' future-day'; // mod bisa lihat future normal
 
     let indicators = '';
     if (hasAd) indicators += `<div class="day-dot dot-ad"></div>`;
@@ -1396,13 +1415,26 @@ function buildCalendarHTMLEnhanced(month, year, leadsMap, adsMap, role, prefix, 
     const adBadges = dayAds.slice(0,2).map(a => `<span class="ad-type-badge ${a.category==='product'?'badge-product':a.category==='reseller'?'badge-reseller':'badge-b2b-tag'}">${a.category}</span>`).join('');
     const leadsCount = hasLeads ? `<div class="day-leads-count">${dayLeads.length}L</div>` : '';
     const holidayLabel = !!holiday ? `<div class="holiday-label">${holiday}</div>` : '';
-    const lockOverlay = isLocked ? `<i class="fas fa-lock lock-icon-overlay"></i>` : '';
 
-    const clickHandler = isLocked
-      ? `onclick="showAdLockedToast()"`
-      : `onclick="${prefix}ClickDay('${dateStr}')"`;
+    // Ikon gembok: future dengan iklan = ikon kalender-clock; locked tanpa iklan = gembok biasa
+    let lockOverlay = '';
+    if (isLocked && isRoleView) {
+      lockOverlay = isFutureWithAd
+        ? `<i class="fas fa-calendar-clock lock-icon-overlay" title="${lockReason}"></i>`
+        : `<i class="fas fa-lock lock-icon-overlay" title="${lockReason}"></i>`;
+    }
 
-    html += `<div class="${classes}" ${clickHandler} title="${isLocked ? 'Belum ada iklan – tidak bisa input leads' : (holiday || dateStr)}">
+    let clickHandler;
+    if (isLocked && isRoleView) {
+      const toastType = isFutureWithAd ? 'future' : 'noAd';
+      clickHandler = `onclick="showAdLockedToast('${toastType}')"`;
+    } else {
+      clickHandler = `onclick="${prefix}ClickDay('${dateStr}')"`;
+    }
+
+    const titleAttr = (isLocked && isRoleView) ? lockReason : (holiday || dateStr);
+
+    html += `<div class="${classes}" ${clickHandler} title="${titleAttr}">
       <div class="day-num">${d}</div>
       <div class="day-indicators">${indicators}</div>
       ${adBadges}${leadsCount}${holidayLabel}${lockOverlay}
@@ -1413,8 +1445,12 @@ function buildCalendarHTMLEnhanced(month, year, leadsMap, adsMap, role, prefix, 
   return html;
 }
 
-window.showAdLockedToast = () => {
-  showToast('Moderator belum membuat iklan untuk hari ini – leads tidak bisa diinput', 'warning', 4000);
+window.showAdLockedToast = (type = 'noAd') => {
+  if (type === 'future') {
+    showToast('📅 Iklan sudah dijadwalkan – leads hanya bisa diisi pada hari H, bukan hari depan', 'warning', 5000);
+  } else {
+    showToast('🔒 Tidak ada iklan di hari ini – leads tidak bisa diinput', 'warning', 4000);
+  }
 };
 
 // Override renderAdminCalendar dengan fitur baru
@@ -1498,20 +1534,29 @@ async function renderB2BCalendarEnhanced() {
 // Override showDayModal untuk cek iklan sebelum bisa input leads
 const _origShowDayModal = showDayModal;
 window.showDayModal = async function(dateStr, role) {
-  // Jika role adalah admin/b2b (bukan moderator), cek apakah ada iklan
-  if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'b2b') && currentUser.role !== 'moderator') {
+  // Jika role adalah admin/b2b (bukan moderator), berlakukan aturan ketat
+  if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'b2b')) {
+    const todayStr = toDateStr(new Date());
+    const isFuture = dateStr > todayStr;
+
+    // Blokir hari depan – meski ada iklan
+    if (isFuture) {
+      showToast('📅 Leads hanya bisa diisi pada hari H – tidak bisa input untuk hari depan', 'warning', 5000);
+      return _origShowDayModalReadOnly(dateStr, role, 'future');
+    }
+
+    // Blokir hari tanpa iklan
     const hasAd = await hasAdForRoleOnDate(dateStr, currentUser.role);
     if (!hasAd) {
-      showToast('❌ Moderator belum membuat iklan untuk tanggal ini. Leads tidak bisa diinput.', 'warning', 5000);
-      // tetap buka modal tapi tanpa tombol input
-      return _origShowDayModalReadOnly(dateStr, role);
+      showToast('🔒 Moderator belum membuat iklan untuk tanggal ini. Leads tidak bisa diinput.', 'warning', 5000);
+      return _origShowDayModalReadOnly(dateStr, role, 'noAd');
     }
   }
   return _origShowDayModal(dateStr, role);
 };
 
 // Mode read-only day modal (tanpa tombol input)
-async function _origShowDayModalReadOnly(dateStr, role) {
+async function _origShowDayModalReadOnly(dateStr, role, reason = 'noAd') {
   const leads = await getLeadsForDate(dateStr, role);
   const ads = await getAdsForDate(dateStr);
   const holiday = HOLIDAYS_2026[dateStr];
@@ -1520,8 +1565,24 @@ async function _origShowDayModalReadOnly(dateStr, role) {
   const dateDisplay = `${dayName}, ${dateObj.getDate()} ${MONTHS[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
   const cats = countByCategory(leads);
   const modalId = 'dayModal';
-  const adsHtml = `<div style="padding:12px;background:rgba(224,82,82,0.1);border:1px solid rgba(224,82,82,0.3);border-radius:8px;display:flex;gap:10px;align-items:center;"><i class="fas fa-lock" style="color:var(--red);"></i><span style="font-size:0.82rem;color:var(--red);">Moderator belum membuat iklan untuk tanggal ini. Input leads tidak tersedia.</span></div>`;
-  showModal(modalId, `<div class="modal-header"><div><div class="modal-title">${dateDisplay}</div>${holiday?`<div style="color:var(--red);font-size:0.78rem;margin-top:4px;"><i class="fas fa-flag"></i> ${holiday}</div>`:''}</div><button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button></div><div class="modal-body">${adsHtml}<div style="margin-top:16px;"><div style="font-family:var(--font-ui);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);margin-bottom:10px;"><i class="fas fa-users" style="color:var(--blue);"></i> &nbsp;Leads (${leads.length})</div>${leads.length===0?'<div class="text-muted text-sm">Belum ada leads.</div>':`<table><thead><tr><th>Nama</th><th>Wilayah</th><th>Kategori</th></tr></thead><tbody>${leads.map(l=>`<tr><td>${l.name}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td></tr>`).join('')}</tbody></table>`}</div></div>`, 'modal-lg');
+
+  let lockMsg = '';
+  if (reason === 'future') {
+    lockMsg = `<div style="padding:12px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;display:flex;gap:10px;align-items:center;margin-bottom:14px;">
+      <i class="fas fa-calendar-clock" style="color:var(--gold);font-size:1.1rem;"></i>
+      <span style="font-size:0.82rem;color:var(--gold);">Iklan sudah dijadwalkan untuk tanggal ini, namun <strong>leads hanya bisa diisi pada hari H</strong>. Silakan tunggu hingga tanggal tersebut tiba.</span>
+    </div>`;
+  } else {
+    lockMsg = `<div style="padding:12px;background:rgba(224,82,82,0.1);border:1px solid rgba(224,82,82,0.3);border-radius:8px;display:flex;gap:10px;align-items:center;margin-bottom:14px;">
+      <i class="fas fa-lock" style="color:var(--red);"></i>
+      <span style="font-size:0.82rem;color:var(--red);">Moderator belum membuat iklan untuk tanggal ini. Input leads tidak tersedia.</span>
+    </div>`;
+  }
+
+  // Tampilkan iklan yang sudah dijadwalkan jika ada
+  const adsHtml = ads.length === 0 ? '' : `<div style="margin-bottom:14px;"><div style="font-family:var(--font-ui);font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);margin-bottom:8px;"><i class="fas fa-bullhorn" style="color:var(--gold);"></i> &nbsp;Iklan Dijadwalkan (${ads.length})</div>${ads.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);"><span class="tag" style="background:rgba(201,168,76,0.15);color:var(--gold);font-size:0.7rem;">${a.category}</span><span style="font-size:0.82rem;">${a.theme||'-'}</span><span style="font-size:0.7rem;color:var(--light-gray);margin-left:auto;">${a.target_role}</span></div>`).join('')}</div>`;
+
+  showModal(modalId, `<div class="modal-header"><div><div class="modal-title">${dateDisplay}</div>${holiday?`<div style="color:var(--red);font-size:0.78rem;margin-top:4px;"><i class="fas fa-flag"></i> ${holiday}</div>`:''}</div><button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button></div><div class="modal-body">${lockMsg}${adsHtml}<div><div style="font-family:var(--font-ui);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);margin-bottom:10px;"><i class="fas fa-users" style="color:var(--blue);"></i> &nbsp;Leads (${leads.length})</div>${leads.length===0?'<div class="text-muted text-sm" style="padding:8px 0;">Belum ada leads.</div>':`<table><thead><tr><th>Nama</th><th>Wilayah</th><th>Kategori</th></tr></thead><tbody>${leads.map(l=>`<tr><td>${l.name}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td></tr>`).join('')}</tbody></table>`}</div></div>`, 'modal-lg');
 }
 
 // Setup 4PM reminder scheduler (cek setiap menit, tembak notif sekali jam 16:00)
