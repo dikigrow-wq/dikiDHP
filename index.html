@@ -250,6 +250,58 @@ tr:last-child td { border-bottom: none; }
 .loading-spinner { width: 40px; height: 40px; border: 3px solid rgba(201,168,76,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 40px auto; }
 .loading-text { text-align: center; color: var(--light-gray); font-size: 0.85rem; margin-top: 12px; }
 .export-wrap { display: flex; gap: 10px; flex-wrap: wrap; }
+/* === DAILY TASK CARD === */
+.daily-task-card { background: linear-gradient(135deg, var(--dark2), var(--dark3)); border: 1px solid rgba(201,168,76,0.18); border-radius: var(--radius); padding: 22px; margin-bottom: 20px; position: relative; overflow: hidden; animation: fadeIn 0.5s ease backwards; }
+.daily-task-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-light)); }
+.daily-task-card.b2b-theme { border-color: rgba(76,140,224,0.25); }
+.daily-task-card.b2b-theme::before { background: linear-gradient(90deg, #2A6BC4, var(--blue), #7BB3F0); }
+.daily-task-card.mod-theme { border-color: rgba(155,89,182,0.25); }
+.daily-task-card.mod-theme::before { background: linear-gradient(90deg, #6B3F84, var(--purple), #C589DB); }
+.daily-task-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.daily-task-title { display: flex; align-items: center; gap: 10px; }
+.daily-task-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(201,168,76,0.15); display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 1.1rem; }
+.b2b-theme .daily-task-icon { background: rgba(76,140,224,0.15); color: var(--blue); }
+.mod-theme .daily-task-icon { background: rgba(155,89,182,0.15); color: var(--purple); }
+.daily-task-name { font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; }
+.daily-task-date { font-family: var(--font-ui); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--light-gray); }
+.daily-task-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.daily-task-mini { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 12px; text-align: center; transition: var(--transition); }
+.daily-task-mini:hover { border-color: rgba(201,168,76,0.2); background: rgba(255,255,255,0.05); }
+.daily-task-mini-num { font-family: var(--font-display); font-size: 1.7rem; font-weight: 600; line-height: 1; }
+.daily-task-mini-lbl { font-family: var(--font-ui); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light-gray); margin-top: 6px; }
+.daily-task-progress-row { display: flex; align-items: center; gap: 12px; margin-top: 6px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+.daily-task-progress-row:first-of-type { border-top: none; padding-top: 0; }
+.daily-task-progress-label { font-family: var(--font-ui); font-size: 0.75rem; letter-spacing: 0.05em; min-width: 110px; flex-shrink: 0; color: var(--white); display: flex; align-items: center; gap: 6px; }
+.daily-task-progress-bar-wrap { flex: 1; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; position: relative; }
+.daily-task-progress-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--gold-dark), var(--gold)); transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+.daily-task-progress-bar-fill.cold { background: linear-gradient(90deg, #2A6BC4, var(--blue)); }
+.daily-task-progress-bar-fill.warm { background: linear-gradient(90deg, #B8651F, var(--orange)); }
+.daily-task-progress-bar-fill.hot { background: linear-gradient(90deg, #B53636, var(--red)); }
+.daily-task-progress-bar-fill.closing { background: linear-gradient(90deg, #2D8055, var(--green)); }
+.daily-task-progress-text { font-family: var(--font-ui); font-size: 0.78rem; min-width: 75px; text-align: right; color: var(--light-gray); }
+.daily-task-progress-text strong { color: var(--white); }
+.daily-task-section-title { font-family: var(--font-ui); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); margin: 14px 0 10px; display: flex; align-items: center; gap: 8px; }
+.b2b-theme .daily-task-section-title { color: var(--blue); }
+.mod-theme .daily-task-section-title { color: var(--purple); }
+.daily-task-empty { text-align: center; padding: 20px; color: var(--light-gray); font-size: 0.82rem; background: rgba(255,255,255,0.02); border-radius: 8px; }
+.daily-task-stale-section { margin-top: 16px; padding: 12px; background: rgba(224,82,82,0.06); border: 1px solid rgba(224,82,82,0.2); border-radius: 8px; }
+.daily-task-stale-title { font-family: var(--font-ui); font-size: 0.7rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.daily-task-stale-list { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+.daily-task-stale-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: rgba(0,0,0,0.25); border-radius: 6px; font-size: 0.8rem; }
+.daily-task-stale-item .stale-name { flex: 1; font-weight: 500; }
+.daily-task-stale-item .stale-age { font-family: var(--font-ui); font-size: 0.7rem; color: var(--red); white-space: nowrap; }
+.daily-task-stale-item a.stale-wa { color: var(--green); font-size: 0.78rem; text-decoration: none; padding: 3px 8px; background: rgba(76,175,125,0.12); border-radius: 4px; border: 1px solid rgba(76,175,125,0.25); transition: var(--transition); }
+.daily-task-stale-item a.stale-wa:hover { background: var(--green); color: white; }
+
+/* === STALE LEAD BADGE (pulsing red dot next to name) === */
+@keyframes stalePulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(224,82,82,0.7); transform: scale(1); } 50% { box-shadow: 0 0 0 6px rgba(224,82,82,0); transform: scale(1.1); } }
+@keyframes staleGlow { 0%, 100% { background-color: rgba(224,82,82,0.85); } 50% { background-color: rgba(224,82,82,1); } }
+.stale-lead-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 7px; background: rgba(224,82,82,0.15); border: 1px solid rgba(224,82,82,0.4); border-radius: 10px; font-family: var(--font-ui); font-size: 0.62rem; font-weight: 600; letter-spacing: 0.05em; color: var(--red); text-transform: uppercase; vertical-align: middle; cursor: help; white-space: nowrap; }
+.stale-lead-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: stalePulse 1.6s infinite, staleGlow 1.6s infinite; flex-shrink: 0; }
+.stale-lead-badge.urgent { background: rgba(224,82,82,0.25); border-color: rgba(224,82,82,0.6); color: #FF8A8A; }
+tr.has-stale-lead { background: rgba(224,82,82,0.04); }
+tr.has-stale-lead td:first-child { border-left: 2px solid var(--red); }
+
 .followup-tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 12px; display: inline-block; }
 .fu-followup { background: rgba(76,140,224,0.15); color: var(--blue); }
 .fu-noresp { background: rgba(155,89,182,0.15); color: var(--purple); }
@@ -723,6 +775,223 @@ function countByCategory(leads) {
   return c;
 }
 
+/* ============================================================
+   DAILY TASK HELPERS
+   ============================================================ */
+function getTodayStr() {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+}
+function getTodayDisplay() {
+  const t = new Date();
+  const dayName = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][t.getDay()];
+  return `${dayName}, ${t.getDate()} ${MONTHS[t.getMonth()]} ${t.getFullYear()}`;
+}
+/* A lead is considered "followed up" if its status is anything other than 'new' or 'pending' or empty.
+   This means the user has taken some action: contacted, blocked, closed, etc. */
+function isLeadFollowedUp(l) {
+  if (!l.followup_status) return false;
+  return !['new', 'pending'].includes(l.followup_status);
+}
+/* Stale = active lead (cold/warm/hot/closing) created more than 24h ago AND not yet followed up */
+function isStaleLead(l) {
+  if (!l || !l.created_at) return false;
+  if (!['cold','warm','hot','closing'].includes(l.category)) return false;
+  if (isLeadFollowedUp(l)) return false;
+  const created = new Date(l.created_at);
+  const diffHours = (new Date() - created) / 36e5;
+  return diffHours >= 24;
+}
+function getStaleAgeText(l) {
+  if (!l || !l.created_at) return '';
+  const diffH = Math.floor((new Date() - new Date(l.created_at)) / 36e5);
+  if (diffH < 48) return `${diffH} jam`;
+  const diffD = Math.floor(diffH / 24);
+  return `${diffD} hari`;
+}
+/* Build the small badge that appears next to a lead's name when stale */
+function staleBadgeHTML(l) {
+  if (!isStaleLead(l)) return '';
+  const age = getStaleAgeText(l);
+  const diffH = Math.floor((new Date() - new Date(l.created_at)) / 36e5);
+  const urgent = diffH >= 72 ? ' urgent' : '';
+  return `<span class="stale-lead-badge${urgent}" title="Belum di-follow-up selama ${age} – segera tindak lanjuti!"><i class="fas fa-bell" style="font-size:0.55rem;"></i> ${age}</span>`;
+}
+
+/* Build the daily task card that goes at the top of admin/b2b dashboards.
+   Shows: today's new leads (broken down by category), how many lama leads are stale,
+   and per-category follow-up progress. */
+function buildDailyTaskCard(role, allLeads) {
+  const today = getTodayStr();
+  const todayLeads = allLeads.filter(l => l.lead_date === today);
+  const todayCats = countByCategory(todayLeads);
+  // Old leads = not from today, in active categories
+  const oldLeads = allLeads.filter(l => l.lead_date !== today && ['cold','warm','hot','closing'].includes(l.category));
+  const oldFollowed = oldLeads.filter(l => isLeadFollowedUp(l));
+  const oldPending = oldLeads.filter(l => !isLeadFollowedUp(l));
+  const staleLeads = allLeads.filter(l => isStaleLead(l));
+  // Per-category progress on OLD leads
+  const catProgress = {};
+  ['cold','warm','hot','closing'].forEach(cat => {
+    const total = oldLeads.filter(l => l.category === cat).length;
+    const done = oldFollowed.filter(l => l.category === cat).length;
+    catProgress[cat] = { done, total, pct: total === 0 ? 0 : Math.round((done/total)*100) };
+  });
+  const themeClass = role === 'b2b' ? 'b2b-theme' : '';
+  const roleLabel = role === 'b2b' ? 'Sales B2B' : 'Admin';
+  const roleColor = role === 'b2b' ? 'var(--blue)' : 'var(--gold)';
+
+  const staleHTML = staleLeads.length === 0 ? '' : `
+    <div class="daily-task-stale-section">
+      <div class="daily-task-stale-title"><i class="fas fa-triangle-exclamation"></i> ${staleLeads.length} Leads Lama Belum Di-Follow-up (>24 jam)</div>
+      <div class="daily-task-stale-list">
+        ${staleLeads.slice(0, 8).map(l => `
+          <div class="daily-task-stale-item">
+            <span class="tag tag-${l.category}" style="font-size:0.62rem;">${l.category}</span>
+            <span class="stale-name">${escapeHtml(l.name)} ${staleBadgeHTML(l)}</span>
+            <span class="stale-age"><i class="fas fa-clock" style="font-size:0.7rem;"></i> ${getStaleAgeText(l)}</span>
+            <a class="stale-wa" href="https://wa.me/${(l.phone||'').replace(/\D/g,'')}" target="_blank" title="Follow-up via WhatsApp"><i class="fab fa-whatsapp"></i></a>
+          </div>`).join('')}
+        ${staleLeads.length > 8 ? `<div style="text-align:center;font-size:0.72rem;color:var(--light-gray);padding:6px;">+ ${staleLeads.length - 8} lainnya...</div>` : ''}
+      </div>
+    </div>`;
+
+  return `
+    <div class="daily-task-card ${themeClass}">
+      <div class="daily-task-header">
+        <div class="daily-task-title">
+          <div class="daily-task-icon"><i class="fas fa-clipboard-check"></i></div>
+          <div>
+            <div class="daily-task-name">Task Harian – <span style="color:${roleColor};">${roleLabel}</span></div>
+            <div class="daily-task-date"><i class="fas fa-calendar-day" style="font-size:0.7rem;"></i> ${getTodayDisplay()}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:var(--font-display);font-size:1.8rem;font-weight:600;color:${roleColor};line-height:1;">${todayLeads.length}</div>
+          <div style="font-family:var(--font-ui);font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--light-gray);">Leads Baru Hari Ini</div>
+        </div>
+      </div>
+
+      <div class="daily-task-section-title"><i class="fas fa-plus-circle"></i> Leads Baru Hari Ini (Per Kategori)</div>
+      <div class="daily-task-grid">
+        <div class="daily-task-mini"><div class="daily-task-mini-num" style="color:var(--blue);">${todayCats.cold}</div><div class="daily-task-mini-lbl">Cold</div></div>
+        <div class="daily-task-mini"><div class="daily-task-mini-num" style="color:var(--orange);">${todayCats.warm}</div><div class="daily-task-mini-lbl">Warm</div></div>
+        <div class="daily-task-mini"><div class="daily-task-mini-num" style="color:var(--red);">${todayCats.hot}</div><div class="daily-task-mini-lbl">Hot</div></div>
+        <div class="daily-task-mini"><div class="daily-task-mini-num" style="color:var(--green);">${todayCats.closing}</div><div class="daily-task-mini-lbl">Closing</div></div>
+      </div>
+
+      <div class="daily-task-section-title"><i class="fas fa-rotate"></i> Progress Follow-up Leads Lama</div>
+      ${oldLeads.length === 0 ? `<div class="daily-task-empty"><i class="fas fa-circle-check" style="color:var(--green);"></i> Tidak ada leads lama yang perlu di-follow-up</div>` : `
+        <div style="background:rgba(255,255,255,0.02);border-radius:8px;padding:12px 14px;">
+          ${['cold','warm','hot','closing'].map(cat => {
+            const p = catProgress[cat];
+            if (p.total === 0) return '';
+            return `
+              <div class="daily-task-progress-row">
+                <div class="daily-task-progress-label"><span class="tag tag-${cat}" style="font-size:0.62rem;padding:1px 7px;">${cat}</span></div>
+                <div class="daily-task-progress-bar-wrap"><div class="daily-task-progress-bar-fill ${cat}" style="width:${p.pct}%"></div></div>
+                <div class="daily-task-progress-text"><strong>${p.done}</strong>/${p.total} (${p.pct}%)</div>
+              </div>`;
+          }).join('')}
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,255,255,0.08);display:flex;justify-content:space-between;font-size:0.78rem;">
+            <span style="color:var(--green);"><i class="fas fa-check"></i> Sudah di-follow-up: <strong>${oldFollowed.length}</strong></span>
+            <span style="color:var(--orange);"><i class="fas fa-hourglass-half"></i> Belum di-follow-up: <strong>${oldPending.length}</strong></span>
+          </div>
+        </div>
+      `}
+
+      ${staleHTML}
+    </div>`;
+}
+
+/* Daily task card for MODERATOR — shows ads added today + summary of admin & b2b daily activity */
+function buildModDailyTaskCard(adminLeads, b2bLeads, ads) {
+  const today = getTodayStr();
+  const todayAds = ads.filter(a => a.ad_date === today);
+  const todayAdminLeads = adminLeads.filter(l => l.lead_date === today);
+  const todayB2BLeads = b2bLeads.filter(l => l.lead_date === today);
+  // Ads breakdown by target_role
+  const adsByTarget = { admin: 0, b2b: 0, all: 0 };
+  todayAds.forEach(a => { if (adsByTarget[a.target_role] !== undefined) adsByTarget[a.target_role]++; });
+  // Ads breakdown by category
+  const adsByCategory = { product: 0, reseller: 0, b2b: 0 };
+  todayAds.forEach(a => { if (adsByCategory[a.category] !== undefined) adsByCategory[a.category]++; });
+  // Stale leads across both roles
+  const allActive = [...adminLeads, ...b2bLeads];
+  const staleLeads = allActive.filter(l => isStaleLead(l));
+  const staleAdmin = staleLeads.filter(l => l.role === 'admin').length;
+  const staleB2B = staleLeads.filter(l => l.role === 'b2b').length;
+
+  return `
+    <div class="daily-task-card mod-theme">
+      <div class="daily-task-header">
+        <div class="daily-task-title">
+          <div class="daily-task-icon"><i class="fas fa-clipboard-list"></i></div>
+          <div>
+            <div class="daily-task-name">Task Harian – <span style="color:var(--purple);">Moderator</span></div>
+            <div class="daily-task-date"><i class="fas fa-calendar-day" style="font-size:0.7rem;"></i> ${getTodayDisplay()}</div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:var(--font-display);font-size:1.8rem;font-weight:600;color:var(--purple);line-height:1;">${todayAds.length}</div>
+          <div style="font-family:var(--font-ui);font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--light-gray);">Iklan Ditambahkan Hari Ini</div>
+        </div>
+      </div>
+
+      <div class="daily-task-section-title"><i class="fas fa-bullhorn"></i> Iklan yang Ditambahkan Hari Ini</div>
+      <div class="daily-task-grid">
+        <div class="daily-task-mini"><div class="daily-task-mini-num" style="color:var(--gold);">${adsByTarget.admin}</div><div class="daily-task-mini-lbl">Untuk Admin</div></div>
+        <div class="daily-task-mini"><div class="daily-task-mini-num" style="color:var(--blue);">${adsByTarget.b2b}</div><div class="daily-task-mini-lbl">Untuk B2B</div></div>
+        <div class="daily-task-mini"><div class="daily-task-mini-num" style="color:var(--purple);">${adsByTarget.all}</div><div class="daily-task-mini-lbl">Untuk Semua</div></div>
+      </div>
+
+      <div class="daily-task-section-title"><i class="fas fa-tags"></i> Per Kategori Iklan</div>
+      <div class="daily-task-grid">
+        <div class="daily-task-mini"><div class="daily-task-mini-num">${adsByCategory.product}</div><div class="daily-task-mini-lbl">Product</div></div>
+        <div class="daily-task-mini"><div class="daily-task-mini-num">${adsByCategory.reseller}</div><div class="daily-task-mini-lbl">Reseller</div></div>
+        <div class="daily-task-mini"><div class="daily-task-mini-num">${adsByCategory.b2b}</div><div class="daily-task-mini-lbl">B2B</div></div>
+      </div>
+
+      <div class="daily-task-section-title"><i class="fas fa-users"></i> Aktivitas Tim Hari Ini</div>
+      <div style="background:rgba(255,255,255,0.02);border-radius:8px;padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+          <span style="font-size:0.85rem;"><span class="sidebar-role-badge badge-admin" style="display:inline;">Admin</span> &nbsp; Leads input hari ini</span>
+          <strong style="font-family:var(--font-display);font-size:1.3rem;color:var(--gold);">${todayAdminLeads.length}</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;">
+          <span style="font-size:0.85rem;"><span class="sidebar-role-badge badge-b2b" style="display:inline;">B2B</span> &nbsp; Leads input hari ini</span>
+          <strong style="font-family:var(--font-display);font-size:1.3rem;color:var(--blue);">${todayB2BLeads.length}</strong>
+        </div>
+      </div>
+
+      ${staleLeads.length === 0 ? '' : `
+      <div class="daily-task-stale-section">
+        <div class="daily-task-stale-title"><i class="fas fa-triangle-exclamation"></i> ${staleLeads.length} Leads Lama Belum Di-Follow-up (>24 jam)</div>
+        <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;background:rgba(0,0,0,0.25);padding:8px 12px;border-radius:6px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:1.4rem;color:var(--gold);">${staleAdmin}</div>
+            <div style="font-size:0.68rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;">Admin</div>
+          </div>
+          <div style="flex:1;min-width:120px;background:rgba(0,0,0,0.25);padding:8px 12px;border-radius:6px;text-align:center;">
+            <div style="font-family:var(--font-display);font-size:1.4rem;color:var(--blue);">${staleB2B}</div>
+            <div style="font-size:0.68rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;">B2B</div>
+          </div>
+        </div>
+        <div class="daily-task-stale-list">
+          ${staleLeads.slice(0, 6).map(l => `
+            <div class="daily-task-stale-item">
+              <span class="sidebar-role-badge ${l.role==='admin'?'badge-admin':'badge-b2b'}" style="display:inline;font-size:0.6rem;">${l.role}</span>
+              <span class="tag tag-${l.category}" style="font-size:0.62rem;">${l.category}</span>
+              <span class="stale-name">${escapeHtml(l.name)} ${staleBadgeHTML(l)}</span>
+              <span class="stale-age"><i class="fas fa-clock" style="font-size:0.7rem;"></i> ${getStaleAgeText(l)}</span>
+            </div>`).join('')}
+          ${staleLeads.length > 6 ? `<div style="text-align:center;font-size:0.72rem;color:var(--light-gray);padding:6px;">+ ${staleLeads.length - 6} lainnya...</div>` : ''}
+        </div>
+      </div>
+      `}
+    </div>`;
+}
+
 function buildCalendarHTML(month, year, leadsMap, adsMap, role, prefix) {
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month+1, 0).getDate();
@@ -776,7 +1045,7 @@ async function renderAdminDashboard() {
   const cats = countByCategory(leads);
   const adsMap = {}; ads.forEach(a => { if (!adsMap[a.ad_date]) adsMap[a.ad_date] = []; adsMap[a.ad_date].push(a); });
   const leadsMap = groupLeadsByDate(leads);
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="stats-grid"><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${leads.length}</div><div class="stat-label">Total Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-snowflake"></i></div><div class="stat-value" style="color:var(--blue)">${cats.cold}</div><div class="stat-label">Cold</div></div><div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-fire-flame-simple"></i></div><div class="stat-value" style="color:var(--orange)">${cats.warm}</div><div class="stat-label">Warm</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-bullhorn"></i></div><div class="stat-value" style="color:var(--purple)">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div><div class="card-title">Leads Trend Bulanan</div><div class="card-subtitle">12 bulan terakhir</div></div></div><div class="chart-wrap" style="height:220px;"><canvas id="adminTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div><div class="card-title">Kategori Leads</div></div></div><div class="chart-wrap" style="height:220px;"><canvas id="adminPieChart"></canvas></div></div></div><div class="card"><div class="card-header"><div><div class="card-title">Kalender – ${MONTHS[currentCalMonth]} ${currentCalYear}</div><div class="card-subtitle">Klik tanggal untuk input leads</div></div><div class="flex gap-8"><span class="tag tag-cold" style="font-size:0.65rem;">Leads</span><span class="tag" style="background:rgba(201,168,76,0.15);color:var(--gold);font-size:0.65rem;">Iklan</span><span class="tag tag-hot" style="font-size:0.65rem;">Libur</span></div></div><div id="adminCalWrap">${buildCalendarHTML(currentCalMonth, currentCalYear, leadsMap, adsMap, 'admin', 'adminCal')}</div></div></div>`;
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${buildDailyTaskCard('admin', leads)}<div class="stats-grid"><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${leads.length}</div><div class="stat-label">Total Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-snowflake"></i></div><div class="stat-value" style="color:var(--blue)">${cats.cold}</div><div class="stat-label">Cold</div></div><div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-fire-flame-simple"></i></div><div class="stat-value" style="color:var(--orange)">${cats.warm}</div><div class="stat-label">Warm</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-bullhorn"></i></div><div class="stat-value" style="color:var(--purple)">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div><div class="card-title">Leads Trend Bulanan</div><div class="card-subtitle">12 bulan terakhir</div></div></div><div class="chart-wrap" style="height:220px;"><canvas id="adminTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div><div class="card-title">Kategori Leads</div></div></div><div class="chart-wrap" style="height:220px;"><canvas id="adminPieChart"></canvas></div></div></div><div class="card"><div class="card-header"><div><div class="card-title">Kalender – ${MONTHS[currentCalMonth]} ${currentCalYear}</div><div class="card-subtitle">Klik tanggal untuk input leads</div></div><div class="flex gap-8"><span class="tag tag-cold" style="font-size:0.65rem;">Leads</span><span class="tag" style="background:rgba(201,168,76,0.15);color:var(--gold);font-size:0.65rem;">Iklan</span><span class="tag tag-hot" style="font-size:0.65rem;">Libur</span></div></div><div id="adminCalWrap">${buildCalendarHTML(currentCalMonth, currentCalYear, leadsMap, adsMap, 'admin', 'adminCal')}</div></div></div>`;
   const monthly = Array(12).fill(0);
   leads.forEach(l => { const d = new Date(l.lead_date); if (d.getFullYear() === currentCalYear) monthly[d.getMonth()]++; });
   const tc = document.getElementById('adminTrendChart');
@@ -806,7 +1075,7 @@ async function showDayModal(dateStr, role) {
   const canEdit = (role === 'admin' || role === 'b2b') && currentUser && (currentUser.role === role || currentUser.role === 'moderator');
   const adsHtml = ads.length === 0 ? `<div class="text-muted text-sm" style="padding:12px 0;">Tidak ada iklan pada tanggal ini.</div>` : ads.map(a => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);"><span class="tag" style="background:rgba(201,168,76,0.15);color:var(--gold);">${a.category}</span><span style="font-size:0.82rem;">${a.theme||'-'}</span><span style="font-size:0.72rem;color:var(--light-gray);margin-left:auto;">${a.target_role}</span>${currentUser.role==='moderator'?`<button class="btn btn-danger btn-sm btn-icon" onclick="deleteAd('${a.id}','${dateStr}','${role}')"><i class="fas fa-trash"></i></button>`:''}</div>`).join('');
   const modalId = 'dayModal';
-  showModal(modalId, `<div class="modal-header"><div><div class="modal-title">${dateDisplay}</div>${holiday?`<div style="color:var(--red);font-size:0.78rem;margin-top:4px;"><i class="fas fa-flag"></i> ${holiday}</div>`:''}</div><button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button></div><div class="modal-body"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">${[['Cold',cats.cold,'tag-cold'],['Warm',cats.warm,'tag-warm'],['Hot',cats.hot,'tag-hot'],['Closing',cats.closing,'tag-closing']].map(([l,v,t])=>`<div style="text-align:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;font-weight:600;">${v}</div><span class="tag ${t}" style="font-size:0.65rem;">${l}</span></div>`).join('')}</div><div class="mb-20"><div style="font-family:var(--font-ui);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);margin-bottom:10px;"><i class="fas fa-bullhorn" style="color:var(--gold);"></i> &nbsp;Iklan Hari Ini</div>${adsHtml}</div><div class="mb-20"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div style="font-family:var(--font-ui);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);"><i class="fas fa-users" style="color:var(--blue);"></i> &nbsp;Leads (${leads.length})</div>${canEdit?`<div style="display:flex;gap:8px;align-items:center;"><input type="number" min="1" max="100" id="leadsCount" class="form-input" style="width:80px;padding:6px 10px;" placeholder="Jumlah" value="1"><button class="btn btn-primary btn-sm" onclick="startLeadsInput('${dateStr}','${role}')"><i class="fas fa-plus"></i> Input</button></div>`:''}</div>${leads.length===0?`<div class="text-muted text-sm" style="padding:12px 0;">Belum ada leads pada tanggal ini.</div>`:`<div style="max-height:200px;overflow-y:auto;"><table><thead><tr><th>Nama</th><th>WA</th><th>Wilayah</th><th>Kategori</th><th>Status</th>${canEdit||currentUser.role==='moderator'?'<th>Aksi</th>':''}</tr></thead><tbody>${leads.map(l=>`<tr><td>${l.name}</td><td><a href="https://wa.me/${l.phone.replace(/\D/g,'')}" target="_blank" style="color:var(--green);">${l.phone}</a></td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td>${canEdit||currentUser.role==='moderator'?`<td><button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${dateStr}','${role}')"><i class="fas fa-pen"></i></button>${currentUser.role==='moderator'?`<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLead('${l.id}','${dateStr}','${role}')"><i class="fas fa-trash"></i></button>`:''}</td>`:''}</tr>`).join('')}</tbody></table></div>`}</div></div>`, 'modal-lg');
+  showModal(modalId, `<div class="modal-header"><div><div class="modal-title">${dateDisplay}</div>${holiday?`<div style="color:var(--red);font-size:0.78rem;margin-top:4px;"><i class="fas fa-flag"></i> ${holiday}</div>`:''}</div><button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button></div><div class="modal-body"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">${[['Cold',cats.cold,'tag-cold'],['Warm',cats.warm,'tag-warm'],['Hot',cats.hot,'tag-hot'],['Closing',cats.closing,'tag-closing']].map(([l,v,t])=>`<div style="text-align:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;font-weight:600;">${v}</div><span class="tag ${t}" style="font-size:0.65rem;">${l}</span></div>`).join('')}</div><div class="mb-20"><div style="font-family:var(--font-ui);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);margin-bottom:10px;"><i class="fas fa-bullhorn" style="color:var(--gold);"></i> &nbsp;Iklan Hari Ini</div>${adsHtml}</div><div class="mb-20"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div style="font-family:var(--font-ui);font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);"><i class="fas fa-users" style="color:var(--blue);"></i> &nbsp;Leads (${leads.length})</div>${canEdit?`<div style="display:flex;gap:8px;align-items:center;"><input type="number" min="1" max="100" id="leadsCount" class="form-input" style="width:80px;padding:6px 10px;" placeholder="Jumlah" value="1"><button class="btn btn-primary btn-sm" onclick="startLeadsInput('${dateStr}','${role}')"><i class="fas fa-plus"></i> Input</button></div>`:''}</div>${leads.length===0?`<div class="text-muted text-sm" style="padding:12px 0;">Belum ada leads pada tanggal ini.</div>`:`<div style="max-height:200px;overflow-y:auto;"><table><thead><tr><th>Nama</th><th>WA</th><th>Wilayah</th><th>Kategori</th><th>Status</th>${canEdit||currentUser.role==='moderator'?'<th>Aksi</th>':''}</tr></thead><tbody>${leads.map(l=>`<tr class="${isStaleLead(l)?'has-stale-lead':''}"><td>${l.name}${staleBadgeHTML(l)}</td><td><a href="https://wa.me/${l.phone.replace(/\D/g,'')}" target="_blank" style="color:var(--green);">${l.phone}</a></td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td>${canEdit||currentUser.role==='moderator'?`<td><button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${dateStr}','${role}')"><i class="fas fa-pen"></i></button>${currentUser.role==='moderator'?`<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLead('${l.id}','${dateStr}','${role}')"><i class="fas fa-trash"></i></button>`:''}</td>`:''}</tr>`).join('')}</tbody></table></div>`}</div></div>`, 'modal-lg');
 }
 async function getLeadsForDate(dateStr, role) {
   if (!db) return [];
@@ -896,7 +1165,7 @@ async function renderB2BDashboard() {
   const leads = await getLeads('b2b'); const ads = await getAds('b2b');
   const cats = countByCategory(leads); const leadsMap = groupLeadsByDate(leads);
   const adsMap = {}; ads.forEach(a => { if (!adsMap[a.ad_date]) adsMap[a.ad_date] = []; adsMap[a.ad_date].push(a); });
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--blue),rgba(76,140,224,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--blue);">B2B</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Khusus Sales Business-to-Business</div></div></div><div class="stats-grid"><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-users"></i></div><div class="stat-value" style="color:var(--blue)">${leads.length}</div><div class="stat-label">Total Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-snowflake"></i></div><div class="stat-value">${cats.cold}</div><div class="stat-label">Cold</div></div><div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-fire-flame-simple"></i></div><div class="stat-value" style="color:var(--orange)">${cats.warm}</div><div class="stat-label">Warm</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-bullhorn"></i></div><div class="stat-value" style="color:var(--purple)">${ads.length}</div><div class="stat-label">Iklan B2B</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div class="card-title">Trend Leads B2B</div></div><div class="chart-wrap" style="height:220px;"><canvas id="b2bTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Kategori Leads B2B</div></div><div class="chart-wrap" style="height:220px;"><canvas id="b2bPieChart"></canvas></div></div></div><div class="card"><div class="card-header"><div class="card-title">Kalender B2B – ${MONTHS[currentB2BMonth]} ${currentB2BYear}</div></div><div id="b2bCalWrap">${buildCalendarHTML(currentB2BMonth, currentB2BYear, leadsMap, adsMap, 'b2b', 'b2bCal')}</div></div></div>`;
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--blue),rgba(76,140,224,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--blue);">B2B</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Khusus Sales Business-to-Business</div></div></div>${buildDailyTaskCard('b2b', leads)}<div class="stats-grid"><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-users"></i></div><div class="stat-value" style="color:var(--blue)">${leads.length}</div><div class="stat-label">Total Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-snowflake"></i></div><div class="stat-value">${cats.cold}</div><div class="stat-label">Cold</div></div><div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-fire-flame-simple"></i></div><div class="stat-value" style="color:var(--orange)">${cats.warm}</div><div class="stat-label">Warm</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-bullhorn"></i></div><div class="stat-value" style="color:var(--purple)">${ads.length}</div><div class="stat-label">Iklan B2B</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div class="card-title">Trend Leads B2B</div></div><div class="chart-wrap" style="height:220px;"><canvas id="b2bTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Kategori Leads B2B</div></div><div class="chart-wrap" style="height:220px;"><canvas id="b2bPieChart"></canvas></div></div></div><div class="card"><div class="card-header"><div class="card-title">Kalender B2B – ${MONTHS[currentB2BMonth]} ${currentB2BYear}</div></div><div id="b2bCalWrap">${buildCalendarHTML(currentB2BMonth, currentB2BYear, leadsMap, adsMap, 'b2b', 'b2bCal')}</div></div></div>`;
   const monthly = Array(12).fill(0); leads.forEach(l => { const d = new Date(l.lead_date); if (d.getFullYear() === currentB2BYear) monthly[d.getMonth()]++; });
   const tCtx = document.getElementById('b2bTrendChart'); if (tCtx) chartsMap.b2bTrend = new Chart(tCtx, { type: 'bar', data: { labels: MONTH_SHORT, datasets: [{ label: 'Leads B2B', data: monthly, backgroundColor: 'rgba(76,140,224,0.6)', borderColor: 'rgba(76,140,224,1)', borderWidth: 1, borderRadius: 4 }] }, options: chartOptions() });
   const pCtx = document.getElementById('b2bPieChart'); if (pCtx) chartsMap.b2bPie = new Chart(pCtx, { type: 'doughnut', data: { labels: ['Cold','Warm','Hot','Closing'], datasets: [{ data: [cats.cold,cats.warm,cats.hot,cats.closing], backgroundColor: ['rgba(76,140,224,0.8)','rgba(224,139,76,0.8)','rgba(224,82,82,0.8)','rgba(76,175,125,0.8)'], borderColor: 'rgba(17,17,17,0.5)', borderWidth: 2 }] }, options: { ...chartOptions(), plugins: { legend: { display: true, position: 'right', labels: { color: '#888', font: { size: 11 } } } } } });
@@ -935,7 +1204,7 @@ window.filterAnalyticsByMonth = async (monthVal, role) => {
 };
 
 function buildCustomerTableHTML(role, leads) {
-  return `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Data Customers – ${role==='admin'?'Admin':'B2B'}</div><div class="card-subtitle">${leads.length} total data</div></div><div class="flex gap-8 flex-wrap"><div class="filter-tabs" id="${role}FilterTabs"><button class="filter-tab active" onclick="filterTable('${role}','all',this)">Semua</button><button class="filter-tab" onclick="filterTable('${role}','cold',this)">Cold</button><button class="filter-tab" onclick="filterTable('${role}','warm',this)">Warm</button><button class="filter-tab" onclick="filterTable('${role}','hot',this)">Hot</button><button class="filter-tab" onclick="filterTable('${role}','closing',this)">Closing</button></div><div class="export-wrap"><button class="btn btn-secondary btn-sm" onclick="exportXLS('${role}')"><i class="fas fa-file-excel"></i></button><button class="btn btn-secondary btn-sm" onclick="exportPDF('${role}')"><i class="fas fa-file-pdf"></i></button></div></div></div><div class="table-wrap"><table id="${role}CustomerTable"><thead class="sticky-header"><tr><th>#</th><th>Nama</th><th>WhatsApp</th><th>Wilayah</th><th>Kategori</th><th>Status Follow-up</th><th>Tanggal</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${leads.length===0?`<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--light-gray);">Belum ada data leads</td></tr>`:leads.map((l,i)=>`<tr data-category="${l.category}"><td style="color:var(--light-gray);">${i+1}</td><td><strong>${l.name}</strong></td><td><a href="https://wa.me/${(l.phone||'').replace(/\D/g,'')}" target="_blank" style="color:var(--green);text-decoration:none;"><i class="fab fa-whatsapp"></i> ${l.phone}</a></td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="white-space:nowrap;color:var(--light-gray);">${l.lead_date}</td><td style="max-width:200px;font-size:0.78rem;color:var(--light-gray);">${(l.notes||'').slice(0,60)}${(l.notes||'').length>60?'...':''}</td><td>${(currentUser.role===role||currentUser.role==='moderator')?`<button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${l.lead_date}','${role}')"><i class="fas fa-pen"></i></button>`:''} ${currentUser.role==='moderator'?`<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLeadFromTable('${l.id}','${role}')"><i class="fas fa-trash"></i></button>`:''} <button class="btn btn-success btn-sm btn-icon" onclick="sendFollowupReminder('${l.phone}','${l.name}')" title="Follow-up via WA"><i class="fab fa-whatsapp"></i></button></td></tr>`).join('')}</tbody></table></div></div></div>`;
+  return `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Data Customers – ${role==='admin'?'Admin':'B2B'}</div><div class="card-subtitle">${leads.length} total data</div></div><div class="flex gap-8 flex-wrap"><div class="filter-tabs" id="${role}FilterTabs"><button class="filter-tab active" onclick="filterTable('${role}','all',this)">Semua</button><button class="filter-tab" onclick="filterTable('${role}','cold',this)">Cold</button><button class="filter-tab" onclick="filterTable('${role}','warm',this)">Warm</button><button class="filter-tab" onclick="filterTable('${role}','hot',this)">Hot</button><button class="filter-tab" onclick="filterTable('${role}','closing',this)">Closing</button></div><div class="export-wrap"><button class="btn btn-secondary btn-sm" onclick="exportXLS('${role}')"><i class="fas fa-file-excel"></i></button><button class="btn btn-secondary btn-sm" onclick="exportPDF('${role}')"><i class="fas fa-file-pdf"></i></button></div></div></div><div class="table-wrap"><table id="${role}CustomerTable"><thead class="sticky-header"><tr><th>#</th><th>Nama</th><th>WhatsApp</th><th>Wilayah</th><th>Kategori</th><th>Status Follow-up</th><th>Tanggal</th><th>Catatan</th><th>Aksi</th></tr></thead><tbody>${leads.length===0?`<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--light-gray);">Belum ada data leads</td></tr>`:leads.map((l,i)=>`<tr data-category="${l.category}" class="${isStaleLead(l)?'has-stale-lead':''}"><td style="color:var(--light-gray);">${i+1}</td><td><strong>${l.name}</strong>${staleBadgeHTML(l)}</td><td><a href="https://wa.me/${(l.phone||'').replace(/\D/g,'')}" target="_blank" style="color:var(--green);text-decoration:none;"><i class="fab fa-whatsapp"></i> ${l.phone}</a></td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="white-space:nowrap;color:var(--light-gray);">${l.lead_date}</td><td style="max-width:200px;font-size:0.78rem;color:var(--light-gray);">${(l.notes||'').slice(0,60)}${(l.notes||'').length>60?'...':''}</td><td>${(currentUser.role===role||currentUser.role==='moderator')?`<button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${l.lead_date}','${role}')"><i class="fas fa-pen"></i></button>`:''} ${currentUser.role==='moderator'?`<button class="btn btn-danger btn-sm btn-icon" onclick="deleteLeadFromTable('${l.id}','${role}')"><i class="fas fa-trash"></i></button>`:''} <button class="btn btn-success btn-sm btn-icon" onclick="sendFollowupReminder('${l.phone}','${l.name}')" title="Follow-up via WA"><i class="fab fa-whatsapp"></i></button></td></tr>`).join('')}</tbody></table></div></div></div>`;
 }
 window.filterTable = (role, cat, btn) => { document.querySelectorAll(`#${role}FilterTabs .filter-tab`).forEach(b=>b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll(`#${role}CustomerTable tbody tr`).forEach(r => { r.style.display = (cat==='all'||r.dataset.category===cat)?'':'none'; }); };
 window.deleteLeadFromTable = async (leadId, role) => { if (!confirm('Hapus leads ini?')) return; if (db) await db.from('leads').delete().eq('id', leadId); showToast('Lead dihapus', 'info'); if (role==='admin') await renderAdminTable(); else await renderB2BTable(); };
@@ -957,7 +1226,7 @@ window.exportPDF = async (role) => {
 async function renderModDashboard() {
   const [adminLeads, b2bLeads, ads] = await Promise.all([getLeads('admin'), getLeads('b2b'), getAds()]);
   const adminCats = countByCategory(adminLeads); const b2bCats = countByCategory(b2bLeads);
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--purple),rgba(155,89,182,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--purple);">Moderator</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Overview Semua Role</div></div></div><div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));"><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${adminLeads.length+b2bLeads.length}</div><div class="stat-label">Total Semua Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-user-tie"></i></div><div class="stat-value">${adminLeads.length}</div><div class="stat-label">Leads Admin</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--blue)">${b2bLeads.length}</div><div class="stat-label">Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-bullseye"></i></div><div class="stat-value" style="color:var(--green)">${adminCats.closing+b2bCats.closing}</div><div class="stat-label">Total Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-bullhorn"></i></div><div class="stat-value">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin:20px 0;"><div class="card"><div class="card-header"><div class="card-title">Admin vs B2B Leads</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modCompareChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Distribusi Kategori – Semua Role</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modAllCatChart"></canvas></div></div></div><div class="grid-2" style="gap:20px;"><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--gold);">Admin</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(adminCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--blue);">Sales B2B</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(b2bCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div></div></div>`;
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--purple),rgba(155,89,182,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--purple);">Moderator</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Overview Semua Role</div></div></div>${buildModDailyTaskCard(adminLeads, b2bLeads, ads)}<div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));"><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${adminLeads.length+b2bLeads.length}</div><div class="stat-label">Total Semua Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-user-tie"></i></div><div class="stat-value">${adminLeads.length}</div><div class="stat-label">Leads Admin</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--blue)">${b2bLeads.length}</div><div class="stat-label">Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-bullseye"></i></div><div class="stat-value" style="color:var(--green)">${adminCats.closing+b2bCats.closing}</div><div class="stat-label">Total Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-bullhorn"></i></div><div class="stat-value">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin:20px 0;"><div class="card"><div class="card-header"><div class="card-title">Admin vs B2B Leads</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modCompareChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Distribusi Kategori – Semua Role</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modAllCatChart"></canvas></div></div></div><div class="grid-2" style="gap:20px;"><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--gold);">Admin</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(adminCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--blue);">Sales B2B</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(b2bCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div></div></div>`;
   const aM = Array(12).fill(0); const bM = Array(12).fill(0);
   adminLeads.forEach(l => aM[new Date(l.lead_date).getMonth()]++); b2bLeads.forEach(l => bM[new Date(l.lead_date).getMonth()]++);
   const ccCtx = document.getElementById('modCompareChart'); if (ccCtx) chartsMap.modCompare = new Chart(ccCtx, { type: 'bar', data: { labels: MONTH_SHORT, datasets: [{ label: 'Admin', data: aM, backgroundColor: 'rgba(201,168,76,0.6)', borderColor: 'rgba(201,168,76,1)', borderRadius: 4 }, { label: 'B2B', data: bM, backgroundColor: 'rgba(76,140,224,0.6)', borderColor: 'rgba(76,140,224,1)', borderRadius: 4 }] }, options: { ...chartOptions(), plugins: { ...chartOptions().plugins, legend: { display: true, labels: { color: '#888', font: { size: 11 } } } } } });
@@ -990,7 +1259,7 @@ window.deleteAd = async (adId, dateStr, role) => { if (!confirm('Hapus iklan ini
 
 async function renderModTasks() {
   const [adminLeads, b2bLeads] = await Promise.all([getLeads('admin'), getLeads('b2b')]); const allLeads = [...adminLeads, ...b2bLeads];
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Semua Task – Semua Role</div><div class="card-subtitle">${allLeads.length} total entri</div></div><div class="filter-tabs" id="modFilterTabs"><button class="filter-tab active" onclick="modFilterAll('all',this)">Semua</button><button class="filter-tab" onclick="modFilterAll('admin',this)">Admin</button><button class="filter-tab" onclick="modFilterAll('b2b',this)">B2B</button><button class="filter-tab" onclick="modFilterAll('cold',this)">Cold</button><button class="filter-tab" onclick="modFilterAll('warm',this)">Warm</button><button class="filter-tab" onclick="modFilterAll('hot',this)">Hot</button><button class="filter-tab" onclick="modFilterAll('closing',this)">Closing</button></div></div><div class="table-wrap"><table id="modAllTable"><thead><tr><th>#</th><th>Role</th><th>Nama</th><th>WA</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead><tbody>${allLeads.length===0?`<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--light-gray);">Belum ada data</td></tr>`:allLeads.map((l,i)=>`<tr data-role="${l.role}" data-category="${l.category}"><td style="color:var(--light-gray);">${i+1}</td><td><span class="sidebar-role-badge ${l.role==='admin'?'badge-admin':'badge-b2b'}" style="display:inline;">${l.role}</span></td><td><strong>${l.name}</strong></td><td><a href="https://wa.me/${(l.phone||'').replace(/\D/g,'')}" target="_blank" style="color:var(--green);">${l.phone}</a></td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="white-space:nowrap;color:var(--light-gray);">${l.lead_date}</td><td><button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${l.lead_date}','${l.role}')"><i class="fas fa-pen"></i></button><button class="btn btn-danger btn-sm btn-icon" onclick="modDeleteLead('${l.id}','${l.role}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div></div></div>`;
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Semua Task – Semua Role</div><div class="card-subtitle">${allLeads.length} total entri</div></div><div class="filter-tabs" id="modFilterTabs"><button class="filter-tab active" onclick="modFilterAll('all',this)">Semua</button><button class="filter-tab" onclick="modFilterAll('admin',this)">Admin</button><button class="filter-tab" onclick="modFilterAll('b2b',this)">B2B</button><button class="filter-tab" onclick="modFilterAll('cold',this)">Cold</button><button class="filter-tab" onclick="modFilterAll('warm',this)">Warm</button><button class="filter-tab" onclick="modFilterAll('hot',this)">Hot</button><button class="filter-tab" onclick="modFilterAll('closing',this)">Closing</button></div></div><div class="table-wrap"><table id="modAllTable"><thead><tr><th>#</th><th>Role</th><th>Nama</th><th>WA</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th><th>Aksi</th></tr></thead><tbody>${allLeads.length===0?`<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--light-gray);">Belum ada data</td></tr>`:allLeads.map((l,i)=>`<tr data-role="${l.role}" data-category="${l.category}" class="${isStaleLead(l)?'has-stale-lead':''}"><td style="color:var(--light-gray);">${i+1}</td><td><span class="sidebar-role-badge ${l.role==='admin'?'badge-admin':'badge-b2b'}" style="display:inline;">${l.role}</span></td><td><strong>${l.name}</strong>${staleBadgeHTML(l)}</td><td><a href="https://wa.me/${(l.phone||'').replace(/\D/g,'')}" target="_blank" style="color:var(--green);">${l.phone}</a></td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="white-space:nowrap;color:var(--light-gray);">${l.lead_date}</td><td><button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${l.lead_date}','${l.role}')"><i class="fas fa-pen"></i></button><button class="btn btn-danger btn-sm btn-icon" onclick="modDeleteLead('${l.id}','${l.role}')"><i class="fas fa-trash"></i></button></td></tr>`).join('')}</tbody></table></div></div></div>`;
 }
 window.modFilterAll = (filter, btn) => { document.querySelectorAll('#modFilterTabs .filter-tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('#modAllTable tbody tr').forEach(r => { if (filter==='all') r.style.display=''; else if (filter==='admin'||filter==='b2b') r.style.display=r.dataset.role===filter?'':'none'; else r.style.display=r.dataset.category===filter?'':'none'; }); };
 window.modDeleteLead = async (leadId, role) => { if (!confirm('Hapus leads ini?')) return; if (db) await db.from('leads').delete().eq('id', leadId); showToast('Lead dihapus', 'info'); await renderModTasks(); };
@@ -1082,7 +1351,7 @@ async function renderGuestAnalyticsView(roleView) {
 }
 async function renderGuestTasks() {
   const [adminLeads, b2bLeads] = await Promise.all([getLeads('admin'), getLeads('b2b')]);
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Task Admin</div><div class="card-subtitle">${adminLeads.length} entri</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${adminLeads.map((l,i)=>`<tr><td>${i+1}</td><td>${l.name}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="color:var(--light-gray);">${l.lead_date}</td></tr>`).join('')}</tbody></table></div></div><div class="card" style="margin-top:20px;"><div class="card-header"><div><div class="card-title">Task B2B</div><div class="card-subtitle">${b2bLeads.length} entri</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${b2bLeads.map((l,i)=>`<tr><td>${i+1}</td><td>${l.name}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="color:var(--light-gray);">${l.lead_date}</td></tr>`).join('')}</tbody></table></div></div></div>`;
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Task Admin</div><div class="card-subtitle">${adminLeads.length} entri</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${adminLeads.map((l,i)=>`<tr class="${isStaleLead(l)?'has-stale-lead':''}"><td>${i+1}</td><td>${l.name}${staleBadgeHTML(l)}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="color:var(--light-gray);">${l.lead_date}</td></tr>`).join('')}</tbody></table></div></div><div class="card" style="margin-top:20px;"><div class="card-header"><div><div class="card-title">Task B2B</div><div class="card-subtitle">${b2bLeads.length} entri</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${b2bLeads.map((l,i)=>`<tr class="${isStaleLead(l)?'has-stale-lead':''}"><td>${i+1}</td><td>${l.name}${staleBadgeHTML(l)}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="color:var(--light-gray);">${l.lead_date}</td></tr>`).join('')}</tbody></table></div></div></div>`;
 }
 
 function getRelativeTime(dateStr) {
