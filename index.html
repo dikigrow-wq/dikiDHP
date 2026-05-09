@@ -3155,11 +3155,22 @@ window.submitHostReport = async () => {
   const schedId = (document.getElementById('rh_sched_id')||{}).value;
   const totalSessions = parseInt((document.getElementById('rh_sessions_count')||{}).value)||0;
 
-  // DEADLINE LOCK
-  if (isPastDeadline(dateStr)) {
-    showToast(`Report ${dateStr} sudah dikunci (lewat 00:00). Tidak bisa diubah.`, 'error');
-    closeModal('hostReportModal');
-    return;
+  // DEADLINE LOCK — cek unlock_request approved dulu sebelum blokir
+  let unlockedByMod = false;
+  if (isPastDeadline(dateStr) && db) {
+    const { data: ulCheck } = await db.from('unlock_requests')
+      .select('*')
+      .eq('host_user', currentUser.hostUser)
+      .eq('report_date', dateStr)
+      .eq('status', 'approved')
+      .limit(1);
+    if (ulCheck && ulCheck.length > 0) {
+      unlockedByMod = true; // izinkan submit karena moderator sudah approve
+    } else {
+      showToast(`Report ${dateStr} sudah dikunci (lewat 00:00). Tidak bisa diubah.`, 'error');
+      closeModal('hostReportModal');
+      return;
+    }
   }
 
   let sessIndices;
@@ -3232,18 +3243,34 @@ window.submitHostReport = async () => {
 
     const sessSummary = sessionData.map((s,i)=>`Sesi ${(s.sessIdx||i)+1}: ${s.start}–${s.end} (${minutesToHM(s.minutes)}) GMV ${fmtIDRShort(s.gmv)} ${s.pieces}pcs`).join(' | ');
     const isAllFilled = filledCount >= totalSessions;
+    const unlockLabel = unlockedByMod ? ' 🔓 [Via Buka Kunci]' : '';
     await db.from('notifications').insert([{
-      title: isAllFilled ? '📝 Report Host Live Lengkap' : `📝 Report Sesi ${sessIndices.map(i=>i+1).join('&')} – ${currentUser.hostName}`,
-      message: `${currentUser.hostName} – ${dateStr} | ${sessSummary} | ${isAllFilled?'SEMUA SESI':'Sesi ini'}: ${minutesToHM(totalMins)} · ${fmtIDR(totalGMV)} · ${totalPieces} pcs. Mohon di-ACC!`,
+      title: isAllFilled ? `📝 Report Host Live Lengkap${unlockLabel}` : `📝 Report Sesi ${sessIndices.map(i=>i+1).join('&')} – ${currentUser.hostName}${unlockLabel}`,
+      message: `${currentUser.hostName} – ${dateStr} | ${sessSummary} | ${isAllFilled?'SEMUA SESI':'Sesi ini'}: ${minutesToHM(totalMins)} · ${fmtIDR(totalGMV)} · ${totalPieces} pcs.${unlockedByMod?' (Diisi setelah buka kunci moderator)':''} Mohon di-ACC!`,
       target_role: 'moderator',
-      icon: 'fa-clipboard-check',
-      icon_bg: 'rgba(255,107,157,0.15)', icon_color: '#FF6B9D',
+      icon: unlockedByMod ? 'fa-lock-open' : 'fa-clipboard-check',
+      icon_bg: unlockedByMod ? 'rgba(76,175,125,0.15)' : 'rgba(255,107,157,0.15)',
+      icon_color: unlockedByMod ? '#4CAF7D' : '#FF6B9D',
       is_read: false, created_at: new Date().toISOString()
     }]);
+
+    // Jika submit via buka kunci → hapus unlock_request agar tidak bisa dipakai lagi
+    if (unlockedByMod) {
+      await db.from('unlock_requests')
+        .delete()
+        .eq('host_user', currentUser.hostUser)
+        .eq('report_date', dateStr)
+        .eq('status', 'approved');
+    }
   }
   closeModal('hostReportModal');
   const isAllDone = sessIndices.length >= totalSessions;
-  showToast(isAllDone ? 'Semua sesi terkirim! Menunggu ACC moderator.' : `Sesi ${sessIndices.map(i=>i+1).join('&')} terkirim! Isi sesi berikutnya setelah selesai.`, 'success');
+  showToast(
+    isAllDone
+      ? `Semua sesi terkirim!${unlockedByMod?' (Buka kunci terpakai)':''} Menunggu ACC moderator.`
+      : `Sesi ${sessIndices.map(i=>i+1).join('&')} terkirim! Isi sesi berikutnya setelah selesai.`,
+    'success'
+  );
   renderHostInput();
 };
 
