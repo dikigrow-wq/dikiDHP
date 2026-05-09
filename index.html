@@ -570,6 +570,109 @@ const MOTIVATIONAL_QUOTES = [
   'Live hari ini, syukur hari ini, target tercapai hari nanti!',
   'Kamu bukan sekadar host – kamu adalah cerita yang menjual!'
 ];
+
+// ── GREETING & STOIC SYSTEM ──
+const STOIC_QUOTES_BY_USER = {
+  moderator: [
+    'Kendali hanya pada apa yang ada di tanganmu. Sisanya, lepaskan.',
+    'Pemimpin sejati bukan yang terkeras suaranya, tapi yang paling jernih pikirannya.',
+    'Kamu tidak bisa mengubah angin, tapi kamu bisa mengatur layarmu.',
+    'Jangan tergesa menilai. Fakta berbicara lebih keras dari opini.',
+    'Disiplin adalah kebebasan dalam bentuk lain.',
+    'Reaksimu terhadap masalah lebih penting dari masalah itu sendiri.',
+  ],
+  admin: [
+    'Detail kecil yang dijaga setiap hari membentuk sistem yang kokoh.',
+    'Fokus bukan berarti mengabaikan – fokus berarti memilih yang penting.',
+    'Data tidak pernah berbohong. Interpretasi yang perlu diawasi.',
+    'Keteraturan adalah fondasi dari segala pencapaian besar.',
+    'Bukan tentang bekerja keras atau cerdas – tapi keduanya sekaligus.',
+    'Satu langkah terukur lebih berharga dari sepuluh langkah terburu-buru.',
+  ],
+  b2b: [
+    'Penolakan bukan akhir – itu adalah awal dari percakapan yang lebih baik.',
+    'Orang beli karena percaya, bukan karena terpaksa. Bangun kepercayaan itu.',
+    'Persistensi tanpa keberanian adalah kegigihan yang salah arah.',
+    'Relasi yang tulus menghasilkan deal yang tahan lama.',
+    'Closing bukan manipulasi – itu hasil dari mendengar dengan benar.',
+    'Setiap "tidak" membawamu lebih dekat ke "iya" yang tepat.',
+  ],
+  guest: [
+    'Pengamat yang baik belajar lebih banyak dari yang bicara.',
+    'Diam dan amati – kejelasan sering datang dari ketenangan.',
+    'Tamu yang bijak pulang dengan lebih banyak pelajaran dari tuan rumah.',
+    'Pengetahuan adalah investasi yang tidak pernah menyusut.',
+  ],
+  nina: [
+    'Nina, satu sesi live yang tulus lebih berkesan dari seratus sesi yang asal.',
+    'Energimu adalah magnet. Semakin tulus, semakin banyak yang tertarik.',
+    'Target besar dimulai dari satu kata pembuka yang hangat. Kamu bisa!',
+    'Jangan tunggu mood sempurna. Mood datang ketika kamu mulai.',
+    'Setiap penonton yang bertahan adalah bukti kamu melakukan sesuatu yang benar.',
+    'Live bukan tentang jualan – itu tentang menyentuh hati orang yang menonton.',
+  ],
+  sekar: [
+    'Sekar, konsistensi adalah senjata terkuatmu. Gunakan setiap hari.',
+    'Kecil atau besar sesinya, yang penting kamu hadir sepenuhnya.',
+    'Ketika ragu, ingat: kamu sudah pernah melewati hari yang lebih berat.',
+    'Penonton tidak selalu ingat kata-katamu, tapi mereka ingat perasaanmu.',
+    'Fokus pada prosesnya. Angka GMV itu hasil, bukan tujuan utama.',
+    'Satu sesi hari ini adalah investasi untuk kepercayaan penonton besok.',
+  ],
+};
+
+const NIGHT_JOKES = [
+  'Jam kerja udah habis tapi masih cek kerjaan? xixixi 🦉 Dedikasi level dewa nih!',
+  'Wah, masih melek juga ya? Kerjaan atau kerjaan yang cari kamu dulu? 😂',
+  'Malam-malam masih check in... Alarm besok pagi mana tahu nangis duluan 😅',
+  'Eh, belum tidur? Kucing aja udah rebahan dari tadi 🐱 Istirahat juga dong!',
+  'Malam bro! FYI, bantal udah nungguin dari 2 jam lalu loh. Kasihan tuh... 😁',
+  'Masih online jam segini? Target belum kelar atau netflixnya malah yang kelar duluan? 😜',
+  'Hei! Malam-malam gini masih semangat? Respect sih... tapi jangan lupa minum air putih ya! 💧',
+  'Kerja malam lagi? Semangat! Tapi inget, tidur juga bagian dari produktivitas ya boss 🌙',
+];
+
+function getGreeting(userName) {
+  const hour = new Date().getHours();
+  let greeting, emoji, isNight = false;
+  if (hour >= 0 && hour <= 9) {
+    greeting = 'Selamat Pagi'; emoji = '☀️';
+  } else if (hour >= 10 && hour <= 15) {
+    greeting = 'Selamat Siang'; emoji = '🌤️';
+  } else if (hour >= 16 && hour <= 18) {
+    greeting = 'Selamat Sore'; emoji = '🌅';
+  } else {
+    greeting = 'Selamat Malam'; emoji = '🌙'; isNight = true;
+  }
+  return { greeting, emoji, isNight };
+}
+
+function getStoicQuote(user) {
+  const pool = STOIC_QUOTES_BY_USER[user] || STOIC_QUOTES_BY_USER['guest'];
+  // Use time-based seed so it changes each session but stays consistent within session
+  const seed = Math.floor(Date.now() / 60000) + (user.charCodeAt(0) || 0);
+  return pool[seed % pool.length];
+}
+
+function getNightJoke() {
+  const seed = Math.floor(Date.now() / 300000);
+  return NIGHT_JOKES[seed % NIGHT_JOKES.length];
+}
+
+function buildLoginGreetingBanner(userName, userKey) {
+  const { greeting, emoji, isNight } = getGreeting(userName);
+  const quote = isNight ? getNightJoke() : getStoicQuote(userKey);
+  const bgColor = isNight
+    ? 'linear-gradient(135deg,rgba(155,89,182,0.15),rgba(76,76,140,0.1))'
+    : 'linear-gradient(135deg,rgba(201,168,76,0.12),rgba(255,107,157,0.06))';
+  const borderColor = isNight ? 'rgba(155,89,182,0.35)' : 'rgba(201,168,76,0.3)';
+  return `
+    <div style="background:${bgColor};border:1px solid ${borderColor};border-radius:14px;padding:16px 20px;margin-bottom:24px;animation:fadeIn 0.6s ease;">
+      <div style="font-family:var(--font-display);font-size:1.15rem;font-weight:500;color:var(--white);margin-bottom:6px;">${emoji} ${greeting}, <span style="background:linear-gradient(135deg,var(--gold),#FF6B9D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">${userName}</span>!</div>
+      <div style="font-size:0.82rem;color:${isNight?'#C39BD3':'var(--light-gray)'};font-style:${isNight?'normal':'italic'};line-height:1.5;">${quote}</div>
+    </div>
+  `;
+}
 const TARGET_REACHED_QUOTES = [
   '🎉 LUAR BIASA! Target tercapai! Kamu adalah bintang! 🌟',
   '👑 KAMU MENAKLUKKAN BULAN INI! Bangga sekali!',
@@ -671,7 +774,11 @@ function enterApp(role, hostUser = null) {
   document.getElementById('app').style.display = 'flex';
   setupSidebar(role);
   if (db) { loadNotifications(); notifInterval = setInterval(loadNotifications, 15000); }
-  showToast(`Selamat datang, ${currentUser.name}!`, 'success');
+  const { greeting: greet, emoji: greetEmoji, isNight: greetIsNight } = getGreeting(currentUser.name);
+  const greetToast = greetIsNight
+    ? `${greetEmoji} ${greet}, ${currentUser.name}! ${getNightJoke()}`
+    : `${greetEmoji} ${greet}, ${currentUser.name}! ${getStoicQuote(hostUser || role)}`;
+  showToast(greetToast, 'success', 6000);
 }
 function logout() {
   if (notifInterval) clearInterval(notifInterval);
@@ -908,7 +1015,7 @@ async function renderAdminDashboard() {
   const missingDates = (currentUser && currentUser.role === 'admin') ? await getMissingLeadsDates('admin') : [];
   const banner = buildMissingLeadsBanner(missingDates, 'admin');
   const reminder = build4PMReminderBanner(missingDates);
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${reminder}${banner}<div class="stats-grid"><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${leads.length}</div><div class="stat-label">Total Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-snowflake"></i></div><div class="stat-value" style="color:var(--blue)">${cats.cold}</div><div class="stat-label">Cold</div></div><div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-fire-flame-simple"></i></div><div class="stat-value" style="color:var(--orange)">${cats.warm}</div><div class="stat-label">Warm</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-bullhorn"></i></div><div class="stat-value" style="color:var(--purple)">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div><div class="card-title">Leads Trend Bulanan</div><div class="card-subtitle">12 bulan terakhir</div></div></div><div class="chart-wrap" style="height:220px;"><canvas id="adminTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div><div class="card-title">Kategori Leads</div></div></div><div class="chart-wrap" style="height:220px;"><canvas id="adminPieChart"></canvas></div></div></div><div class="card"><div class="card-header"><div><div class="card-title">Kalender – ${MONTHS[currentCalMonth]} ${currentCalYear}</div><div class="card-subtitle">Klik tanggal untuk input leads (🔒 hanya hari ada iklan)</div></div><div class="flex gap-8"><span class="tag tag-cold" style="font-size:0.65rem;">Leads</span><span class="tag" style="background:rgba(201,168,76,0.15);color:var(--gold);font-size:0.65rem;">Iklan</span><span class="tag tag-hot" style="font-size:0.65rem;">Wajib Isi</span></div></div><div id="adminCalWrap">${buildCalendarHTMLEnhanced(currentCalMonth, currentCalYear, leadsMap, adsMap, 'admin', 'adminCal', allAdsMap)}</div></div></div>`;
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${buildLoginGreetingBanner('Admin','admin')}${reminder}${banner}<div class="stats-grid"><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${leads.length}</div><div class="stat-label">Total Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-snowflake"></i></div><div class="stat-value" style="color:var(--blue)">${cats.cold}</div><div class="stat-label">Cold</div></div><div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-fire-flame-simple"></i></div><div class="stat-value" style="color:var(--orange)">${cats.warm}</div><div class="stat-label">Warm</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-bullhorn"></i></div><div class="stat-value" style="color:var(--purple)">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div><div class="card-title">Leads Trend Bulanan</div><div class="card-subtitle">12 bulan terakhir</div></div></div><div class="chart-wrap" style="height:220px;"><canvas id="adminTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div><div class="card-title">Kategori Leads</div></div></div><div class="chart-wrap" style="height:220px;"><canvas id="adminPieChart"></canvas></div></div></div><div class="card"><div class="card-header"><div><div class="card-title">Kalender – ${MONTHS[currentCalMonth]} ${currentCalYear}</div><div class="card-subtitle">Klik tanggal untuk input leads (🔒 hanya hari ada iklan)</div></div><div class="flex gap-8"><span class="tag tag-cold" style="font-size:0.65rem;">Leads</span><span class="tag" style="background:rgba(201,168,76,0.15);color:var(--gold);font-size:0.65rem;">Iklan</span><span class="tag tag-hot" style="font-size:0.65rem;">Wajib Isi</span></div></div><div id="adminCalWrap">${buildCalendarHTMLEnhanced(currentCalMonth, currentCalYear, leadsMap, adsMap, 'admin', 'adminCal', allAdsMap)}</div></div></div>`;
   const monthly = Array(12).fill(0);
   leads.forEach(l => { const d = new Date(l.lead_date); if (d.getFullYear() === currentCalYear) monthly[d.getMonth()]++; });
   const tc = document.getElementById('adminTrendChart');
@@ -1034,7 +1141,7 @@ async function renderB2BDashboard() {
   const missingDates = (currentUser && currentUser.role === 'b2b') ? await getMissingLeadsDates('b2b') : [];
   const banner = buildMissingLeadsBanner(missingDates, 'b2b');
   const reminder = build4PMReminderBanner(missingDates);
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${reminder}${banner}<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--blue),rgba(76,140,224,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--blue);">B2B</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Khusus Sales Business-to-Business</div></div></div><div class="stats-grid"><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-users"></i></div><div class="stat-value" style="color:var(--blue)">${leads.length}</div><div class="stat-label">Total Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-snowflake"></i></div><div class="stat-value">${cats.cold}</div><div class="stat-label">Cold</div></div><div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-fire-flame-simple"></i></div><div class="stat-value" style="color:var(--orange)">${cats.warm}</div><div class="stat-label">Warm</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-bullhorn"></i></div><div class="stat-value" style="color:var(--purple)">${ads.length}</div><div class="stat-label">Iklan B2B</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div class="card-title">Trend Leads B2B</div></div><div class="chart-wrap" style="height:220px;"><canvas id="b2bTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Kategori Leads B2B</div></div><div class="chart-wrap" style="height:220px;"><canvas id="b2bPieChart"></canvas></div></div></div><div class="card"><div class="card-header"><div class="card-title">Kalender B2B – ${MONTHS[currentB2BMonth]} ${currentB2BYear}</div><div class="card-subtitle">🔒 Hanya bisa input leads di hari yang sudah ada iklan</div></div><div id="b2bCalWrap">${buildCalendarHTMLEnhanced(currentB2BMonth, currentB2BYear, leadsMap, {}, 'b2b', 'b2bCal', allAdsMap)}</div></div></div>`;
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${buildLoginGreetingBanner("Sales B2B","b2b")}${reminder}${banner}<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--blue),rgba(76,140,224,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--blue);">B2B</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Khusus Sales Business-to-Business</div></div></div><div class="stats-grid"><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-users"></i></div><div class="stat-value" style="color:var(--blue)">${leads.length}</div><div class="stat-label">Total Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-snowflake"></i></div><div class="stat-value">${cats.cold}</div><div class="stat-label">Cold</div></div><div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-fire-flame-simple"></i></div><div class="stat-value" style="color:var(--orange)">${cats.warm}</div><div class="stat-label">Warm</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-bullhorn"></i></div><div class="stat-value" style="color:var(--purple)">${ads.length}</div><div class="stat-label">Iklan B2B</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div class="card-title">Trend Leads B2B</div></div><div class="chart-wrap" style="height:220px;"><canvas id="b2bTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Kategori Leads B2B</div></div><div class="chart-wrap" style="height:220px;"><canvas id="b2bPieChart"></canvas></div></div></div><div class="card"><div class="card-header"><div class="card-title">Kalender B2B – ${MONTHS[currentB2BMonth]} ${currentB2BYear}</div><div class="card-subtitle">🔒 Hanya bisa input leads di hari yang sudah ada iklan</div></div><div id="b2bCalWrap">${buildCalendarHTMLEnhanced(currentB2BMonth, currentB2BYear, leadsMap, {}, 'b2b', 'b2bCal', allAdsMap)}</div></div></div>`;
   const monthly = Array(12).fill(0); leads.forEach(l => { const d = new Date(l.lead_date); if (d.getFullYear() === currentB2BYear) monthly[d.getMonth()]++; });
   const tCtx = document.getElementById('b2bTrendChart'); if (tCtx) chartsMap.b2bTrend = new Chart(tCtx, { type: 'bar', data: { labels: MONTH_SHORT, datasets: [{ label: 'Leads B2B', data: monthly, backgroundColor: 'rgba(76,140,224,0.6)', borderColor: 'rgba(76,140,224,1)', borderWidth: 1, borderRadius: 4 }] }, options: chartOptions() });
   const pCtx = document.getElementById('b2bPieChart'); if (pCtx) chartsMap.b2bPie = new Chart(pCtx, { type: 'doughnut', data: { labels: ['Cold','Warm','Hot','Closing'], datasets: [{ data: [cats.cold,cats.warm,cats.hot,cats.closing], backgroundColor: ['rgba(76,140,224,0.8)','rgba(224,139,76,0.8)','rgba(224,82,82,0.8)','rgba(76,175,125,0.8)'], borderColor: 'rgba(17,17,17,0.5)', borderWidth: 2 }] }, options: { ...chartOptions(), plugins: { legend: { display: true, position: 'right', labels: { color: '#888', font: { size: 11 } } } } } });
@@ -1098,7 +1205,7 @@ window.exportPDF = async (role) => {
 async function renderModDashboard() {
   const [adminLeads, b2bLeads, ads] = await Promise.all([getLeads('admin'), getLeads('b2b'), getAds()]);
   const adminCats = countByCategory(adminLeads); const b2bCats = countByCategory(b2bLeads);
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--purple),rgba(155,89,182,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--purple);">Moderator</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Overview Semua Role</div></div></div><div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));"><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${adminLeads.length+b2bLeads.length}</div><div class="stat-label">Total Semua Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-user-tie"></i></div><div class="stat-value">${adminLeads.length}</div><div class="stat-label">Leads Admin</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--blue)">${b2bLeads.length}</div><div class="stat-label">Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-bullseye"></i></div><div class="stat-value" style="color:var(--green)">${adminCats.closing+b2bCats.closing}</div><div class="stat-label">Total Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-bullhorn"></i></div><div class="stat-value">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin:20px 0;"><div class="card"><div class="card-header"><div class="card-title">Admin vs B2B Leads</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modCompareChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Distribusi Kategori – Semua Role</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modAllCatChart"></canvas></div></div></div><div class="grid-2" style="gap:20px;"><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--gold);">Admin</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(adminCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--blue);">Sales B2B</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(b2bCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div></div></div>`;
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${buildLoginGreetingBanner("Moderator","moderator")}<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--purple),rgba(155,89,182,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--purple);">Moderator</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Overview Semua Role</div></div></div><div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));"><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${adminLeads.length+b2bLeads.length}</div><div class="stat-label">Total Semua Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-user-tie"></i></div><div class="stat-value">${adminLeads.length}</div><div class="stat-label">Leads Admin</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--blue)">${b2bLeads.length}</div><div class="stat-label">Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-bullseye"></i></div><div class="stat-value" style="color:var(--green)">${adminCats.closing+b2bCats.closing}</div><div class="stat-label">Total Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-bullhorn"></i></div><div class="stat-value">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin:20px 0;"><div class="card"><div class="card-header"><div class="card-title">Admin vs B2B Leads</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modCompareChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Distribusi Kategori – Semua Role</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modAllCatChart"></canvas></div></div></div><div class="grid-2" style="gap:20px;"><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--gold);">Admin</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(adminCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--blue);">Sales B2B</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(b2bCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div></div></div>`;
   const aM = Array(12).fill(0); const bM = Array(12).fill(0);
   adminLeads.forEach(l => aM[new Date(l.lead_date).getMonth()]++); b2bLeads.forEach(l => bM[new Date(l.lead_date).getMonth()]++);
   const ccCtx = document.getElementById('modCompareChart'); if (ccCtx) chartsMap.modCompare = new Chart(ccCtx, { type: 'bar', data: { labels: MONTH_SHORT, datasets: [{ label: 'Admin', data: aM, backgroundColor: 'rgba(201,168,76,0.6)', borderColor: 'rgba(201,168,76,1)', borderRadius: 4 }, { label: 'B2B', data: bM, backgroundColor: 'rgba(76,140,224,0.6)', borderColor: 'rgba(76,140,224,1)', borderRadius: 4 }] }, options: { ...chartOptions(), plugins: { ...chartOptions().plugins, legend: { display: true, labels: { color: '#888', font: { size: 11 } } } } } });
@@ -2037,6 +2144,7 @@ async function renderHostDashboard() {
 
   document.getElementById('pageContent').innerHTML = `
     <div style="animation:fadeIn 0.4s ease;">
+      ${buildLoginGreetingBanner(currentUser.hostName, currentUser.hostUser)}
       <div class="motivation-banner">
         <div class="motivation-icon"><i class="fas fa-${percent>=100?'crown':'heart'}"></i></div>
         <div>
@@ -2628,7 +2736,7 @@ window.modHostCalClickDay = async (dateStr) => {
   `);
 };
 
-// ── FORM TAMBAH JADWAL LIVE (tanpa field nama host, pakai pilihan akun host) ──
+// ── FORM TAMBAH JADWAL LIVE (pilih host → pilih sesi 2-4 → per sesi isi waktu & catatan) ──
 window.openAddLiveSchedule = (dateStr) => {
   const d = new Date(dateStr + 'T00:00:00');
   const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
@@ -2644,8 +2752,10 @@ window.openAddLiveSchedule = (dateStr) => {
     </div>
     <div class="modal-body">
       <input type="hidden" id="hs_date" value="${dateStr}">
+
+      <!-- STEP 1: Pilih Akun Host -->
       <div class="form-group">
-        <label class="form-label">Pilih Akun Host *</label>
+        <label class="form-label">1. Pilih Akun Host *</label>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="hostPickerGrid">
           ${Object.entries(HOST_USERS).map(([key,val])=>`
             <div class="role-card" id="hostPick_${key}" onclick="selectHostPick('${key}')" style="padding:14px 10px;text-align:center;cursor:pointer;">
@@ -2657,18 +2767,86 @@ window.openAddLiveSchedule = (dateStr) => {
         </div>
         <input type="hidden" id="hs_host" value="">
       </div>
-      <div class="form-group"><label class="form-label">Jam Mulai *</label><input type="time" class="form-input" id="hs_start" value="19:00"></div>
-      <div class="grid-2" style="gap:12px;">
-        <div class="form-group"><label class="form-label">Jumlah Sesi *</label><input type="number" min="1" max="10" class="form-input" id="hs_sessions" value="2"></div>
-        <div class="form-group"><label class="form-label">Durasi/Sesi (menit) *</label><input type="number" min="15" max="240" class="form-input" id="hs_minutes" value="60"></div>
+
+      <!-- STEP 2: Jumlah Sesi -->
+      <div class="form-group">
+        <label class="form-label">2. Jumlah Sesi *</label>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;" id="sessionCountGrid">
+          ${[2,3,4].map(n=>`
+            <div id="sessPick_${n}" onclick="selectSessionCount(${n})" style="cursor:pointer;border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:14px 8px;text-align:center;transition:all 0.2s;background:rgba(255,255,255,0.02);">
+              <div style="font-family:var(--font-display);font-size:1.6rem;font-weight:600;color:var(--gold);">${n}</div>
+              <div style="font-size:0.7rem;color:var(--light-gray);">Sesi</div>
+            </div>
+          `).join('')}
+        </div>
+        <input type="hidden" id="hs_sessions" value="">
       </div>
-      <div class="form-group"><label class="form-label">Catatan (opsional)</label><textarea class="form-textarea" id="hs_notes" rows="2" placeholder="Misal: tema produk, target khusus..."></textarea></div>
+
+      <!-- STEP 3: Detail per Sesi (muncul setelah pilih jumlah sesi) -->
+      <div id="sessionDetailWrap" style="display:none;">
+        <div style="font-family:var(--font-ui);font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);margin-bottom:12px;">3. Detail per Sesi</div>
+        <div id="sessionDetailRows"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modHostSchedModal')">Batal</button>
       <button class="btn btn-primary" onclick="saveLiveSchedule()"><i class="fas fa-save"></i> Simpan & Kirim Notif</button>
     </div>
   `);
+};
+
+window.selectSessionCount = (n) => {
+  document.getElementById('hs_sessions').value = n;
+  [2,3,4].forEach(x => {
+    const el = document.getElementById('sessPick_'+x);
+    if (el) {
+      el.style.borderColor = x===n ? 'var(--gold)' : 'rgba(201,168,76,0.2)';
+      el.style.background = x===n ? 'rgba(201,168,76,0.1)' : 'rgba(255,255,255,0.02)';
+    }
+  });
+  // Build per-session detail rows
+  const wrap = document.getElementById('sessionDetailWrap');
+  const rows = document.getElementById('sessionDetailRows');
+  wrap.style.display = 'block';
+  rows.innerHTML = Array.from({length:n},(_,i)=>`
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(201,168,76,0.15);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--gold-dark),var(--gold));display:flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-weight:700;font-size:0.8rem;color:var(--black);">${i+1}</div>
+        <div style="font-family:var(--font-ui);font-size:0.8rem;font-weight:600;color:var(--white);">Sesi ${i+1}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <label class="form-label" style="font-size:0.65rem;">Mulai Jam *</label>
+          <input type="time" class="form-input" id="sess_start_${i}" value="${i===0?'19:00':''}" style="font-size:0.85rem;padding:9px 12px;">
+        </div>
+        <div>
+          <label class="form-label" style="font-size:0.65rem;">Selesai Jam *</label>
+          <input type="time" class="form-input" id="sess_end_${i}" value="${i===0?'20:00':''}" style="font-size:0.85rem;padding:9px 12px;" oninput="autofillNextSession(${i},${n})">
+        </div>
+      </div>
+      <div>
+        <label class="form-label" style="font-size:0.65rem;">Catatan Sesi ${i+1} (opsional)</label>
+        <input type="text" class="form-input" id="sess_note_${i}" placeholder="Contoh: tema produk, target khusus sesi ini..." style="font-size:0.82rem;padding:9px 12px;">
+      </div>
+    </div>
+  `).join('');
+};
+
+window.autofillNextSession = (idx, total) => {
+  // Auto-fill next session start time from current end time
+  const endVal = document.getElementById(`sess_end_${idx}`)?.value;
+  if (!endVal) return;
+  const nextStartEl = document.getElementById(`sess_start_${idx+1}`);
+  const nextEndEl = document.getElementById(`sess_end_${idx+1}`);
+  if (nextStartEl && !nextStartEl.value) {
+    nextStartEl.value = endVal;
+    // Auto add 60 minutes for next end
+    if (nextEndEl && !nextEndEl.value) {
+      const [hh,mm] = endVal.split(':').map(Number);
+      const nextEnd = new Date(2000,0,1,hh,mm+60);
+      nextEndEl.value = `${String(nextEnd.getHours()).padStart(2,'0')}:${String(nextEnd.getMinutes()).padStart(2,'0')}`;
+    }
+  }
 };
 
 window.selectHostPick = (key) => {
@@ -2685,22 +2863,46 @@ window.selectHostPick = (key) => {
 window.saveLiveSchedule = async () => {
   const host = document.getElementById('hs_host').value;
   const date = document.getElementById('hs_date').value;
-  const startTime = document.getElementById('hs_start').value;
   const sessions = parseInt(document.getElementById('hs_sessions').value);
-  const minutes = parseInt(document.getElementById('hs_minutes').value);
-  const notes = document.getElementById('hs_notes').value;
+  const notes = document.getElementById('hs_notes') ? document.getElementById('hs_notes').value : '';
   if (!host) { showToast('Pilih akun host terlebih dahulu', 'error'); return; }
-  if (!startTime) { showToast('Jam mulai wajib diisi', 'error'); return; }
-  if (!sessions || sessions<1) { showToast('Jumlah sesi minimal 1', 'error'); return; }
-  if (!minutes || minutes<15) { showToast('Durasi minimal 15 menit', 'error'); return; }
-  const payload = { host_user: host, schedule_date: date, is_holiday: false,
-    start_time: startTime, sessions_count: sessions, session_minutes: minutes, notes, created_at: new Date().toISOString() };
+  if (!sessions || sessions < 2) { showToast('Pilih jumlah sesi terlebih dahulu', 'error'); return; }
+
+  // Collect per-session data
+  const sessionDetails = [];
+  for (let i = 0; i < sessions; i++) {
+    const startEl = document.getElementById(`sess_start_${i}`);
+    const endEl = document.getElementById(`sess_end_${i}`);
+    const noteEl = document.getElementById(`sess_note_${i}`);
+    if (!startEl || !startEl.value) { showToast(`Jam mulai Sesi ${i+1} wajib diisi`, 'error'); return; }
+    if (!endEl || !endEl.value) { showToast(`Jam selesai Sesi ${i+1} wajib diisi`, 'error'); return; }
+    sessionDetails.push({ start: startEl.value, end: endEl.value, note: noteEl ? noteEl.value : '' });
+  }
+
+  // Build start_time from first session, calculate total minutes
+  const startTime = sessionDetails[0].start;
+  const totalMinutes = sessionDetails.reduce((acc, s) => {
+    const [sh,sm] = s.start.split(':').map(Number);
+    const [eh,em] = s.end.split(':').map(Number);
+    return acc + Math.max(0, (eh*60+em) - (sh*60+sm));
+  }, 0);
+
+  const sessionSummary = sessionDetails.map((s,i) => `Sesi ${i+1}: ${s.start}–${s.end}${s.note?' ('+s.note+')':''}`).join(', ');
+  const notifMsg = `Kamu dijadwalkan live pada ${date}. ${sessionSummary}.`;
+
+  const payload = {
+    host_user: host, schedule_date: date, is_holiday: false,
+    start_time: startTime, sessions_count: sessions,
+    session_minutes: Math.round(totalMinutes / sessions),
+    notes: sessionSummary,
+    created_at: new Date().toISOString()
+  };
   if (db) {
     const { error } = await db.from('host_schedules').insert([payload]);
     if (error) { showToast('Gagal menyimpan: '+error.message, 'error'); return; }
     await db.from('notifications').insert([{
       title: '🎬 Jadwal Live Baru',
-      message: `Kamu dijadwalkan live pada ${date}, mulai ${startTime} – ${sessions} sesi × ${minutes} menit.`,
+      message: notifMsg,
       target_role: 'host', target_user: host,
       icon: 'fa-video', icon_bg: 'rgba(255,107,157,0.15)', icon_color: '#FF6B9D',
       is_read: false, created_at: new Date().toISOString()
