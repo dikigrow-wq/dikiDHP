@@ -1419,7 +1419,29 @@ window.exportXLSAll = async () => {
 
 async function renderModNotifications() {
   const notifs = await getNotifications();
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="grid-2" style="gap:20px;"><div class="card"><div class="card-header"><div class="card-title">Kirim Notifikasi</div></div><div class="form-group"><label class="form-label">Judul Notifikasi</label><input type="text" class="form-input" id="notifTitle" placeholder="Judul notifikasi..."></div><div class="form-group"><label class="form-label">Pesan</label><textarea class="form-textarea" id="notifMessage" placeholder="Tulis pesan notifikasi..." rows="3"></textarea></div><div class="form-group"><label class="form-label">Target Role</label><select class="form-select" id="notifTarget"><option value="all">Semua Role</option><option value="admin">Admin</option><option value="b2b">Sales B2B</option><option value="guest">Guest</option></select></div><button class="btn btn-primary" onclick="sendNotification()"><i class="fas fa-paper-plane"></i> Kirim Notifikasi</button><div class="gold-line"></div><div style="font-family:var(--font-ui);font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--light-gray);margin-bottom:12px;">Reminder Cepat</div><div style="display:flex;flex-direction:column;gap:8px;">${[['Admin: Follow-up leads!','admin','Ingatkan Admin untuk segera follow-up leads yang belum ditindaklanjuti.'],['B2B: Update status leads!','b2b','Ingatkan Sales B2B untuk mengupdate status leads terbaru.'],['Semua: Cek kalender iklan!','all','Cek kalender untuk melihat jadwal iklan terbaru.']].map(([t,r,m])=>`<button class="btn btn-secondary btn-sm" onclick="quickNotif('${t}','${r}','${m}')"><i class="fas fa-bolt"></i> ${t}</button>`).join('')}</div></div><div class="card"><div class="card-header"><div class="card-title">Riwayat Notifikasi</div><button class="btn btn-danger btn-sm" onclick="clearAllNotifs()"><i class="fas fa-trash"></i> Hapus Semua</button></div><div id="modNotifList">${notifs.length===0?'<div class="empty-state" style="padding:30px;"><i class="fas fa-bell-slash"></i><p>Belum ada notifikasi</p></div>':notifs.map(n=>`<div style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:flex-start;"><div style="width:32px;height:32px;border-radius:50%;background:${n.icon_bg||'rgba(201,168,76,0.15)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas ${n.icon||'fa-bell'}" style="color:${n.icon_color||'var(--gold)'};font-size:0.8rem;"></i></div><div style="flex:1;"><div style="font-size:0.85rem;font-weight:500;">${n.title}</div><div style="font-size:0.78rem;color:var(--light-gray);margin-top:2px;">${n.message}</div><div style="font-size:0.68rem;color:var(--gray2);margin-top:4px;">${new Date(n.created_at).toLocaleString('id-ID')} · ${n.target_role}</div></div><button class="btn btn-danger btn-sm btn-icon" onclick="deleteNotif('${n.id}')"><i class="fas fa-times"></i></button></div>`).join('')}</div></div></div></div>`;
+
+  // Reminder cepat — quick nudges per role
+  const reminderQuick = [
+    ['Admin: Follow-up leads!','admin','Ingatkan Admin untuk segera follow-up leads yang belum ditindaklanjuti.','fa-bolt','#C9A84C'],
+    ['B2B: Update status leads!','b2b','Ingatkan Sales B2B untuk mengupdate status leads terbaru.','fa-bolt','#4C8CE0'],
+    ['Host: Siap-siap live!','host','Reminder buat host: siapkan produk, mic, lighting, dan semangat sebelum live!','fa-video','#FF6B9D'],
+    ['Host: Isi report harian!','host','Jangan lupa isi report harian setelah selesai live ya. GMV & piece per sesi.','fa-clipboard-check','#FF6B9D'],
+    ['Semua: Cek kalender iklan!','all','Cek kalender untuk melihat jadwal iklan terbaru.','fa-bolt','#C9A84C']
+  ];
+
+  // Motivasi cepat — energizers per role
+  const motivasiQuick = [
+    ['💪 Admin: Kamu MVP hari ini!','admin','Setiap leads yang kamu follow-up adalah satu langkah lebih dekat ke closing. Tetap konsisten ya, kerja kerasmu kelihatan kok! 🌟','fa-heart','#E08B4C'],
+    ['🔥 B2B: Closing rate naik terus!','b2b','Negosiasi itu seni, dan kamu artisnya. Satu deal lagi bisa ubah bulan ini jadi bulan terbaikmu. Gas terus! 🚀','fa-fire','#E08B4C'],
+    ['✨ Host: Aura kamu juara!','host','Kamera dinyalakan = panggung kamu mulai. Senyummu, energimu, dan caramu jelaskan produk itu yang bikin viewer betah. Shine bright! 🌸','fa-star','#FF6B9D'],
+    ['🎬 Host: GMV hari ini = legacy!','host','Setiap piece yang terjual hari ini adalah trust dari customer. Kamu bukan cuma jualan — kamu bangun loyalitas. Proud of you! 💖','fa-trophy','#FF6B9D'],
+    ['🌟 Semua: Tim solid, hasil solid!','all','Admin handle leads, B2B closing deals, Host bawakan produk. Tanpa salah satu, mesin ini gak jalan. Terima kasih sudah jadi bagian penting hari ini! 🙏','fa-hand-holding-heart','#A78BD9']
+  ];
+
+  const reminderHTML = reminderQuick.map(([t,r,m,ic,col])=>`<button class="btn btn-secondary btn-sm" onclick="quickNotif('${t}','${r}','${m.replace(/'/g,"\\'")}','${ic}','${col}')" style="text-align:left;justify-content:flex-start;"><i class="fas ${ic}" style="color:${col};"></i> ${t}</button>`).join('');
+  const motivasiHTML = motivasiQuick.map(([t,r,m,ic,col])=>`<button class="btn btn-secondary btn-sm" onclick="quickNotif('${t}','${r}','${m.replace(/'/g,"\\'")}','${ic}','${col}')" style="text-align:left;justify-content:flex-start;border-color:rgba(167,139,217,0.25);"><i class="fas ${ic}" style="color:${col};"></i> ${t}</button>`).join('');
+
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="grid-2" style="gap:20px;"><div class="card"><div class="card-header"><div class="card-title">Kirim Notifikasi</div></div><div class="form-group"><label class="form-label">Judul Notifikasi</label><input type="text" class="form-input" id="notifTitle" placeholder="Judul notifikasi..."></div><div class="form-group"><label class="form-label">Pesan</label><textarea class="form-textarea" id="notifMessage" placeholder="Tulis pesan notifikasi..." rows="3"></textarea></div><div class="form-group"><label class="form-label">Target Role</label><select class="form-select" id="notifTarget"><option value="all">Semua Role</option><option value="admin">Admin</option><option value="b2b">Sales B2B</option><option value="host">Host Live</option><option value="guest">Guest</option></select></div><button class="btn btn-primary" onclick="sendNotification()"><i class="fas fa-paper-plane"></i> Kirim Notifikasi</button><div class="gold-line"></div><div style="font-family:var(--font-ui);font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--light-gray);margin-bottom:12px;"><i class="fas fa-bolt" style="color:var(--gold);"></i> Reminder Cepat</div><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">${reminderHTML}</div><div style="font-family:var(--font-ui);font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--light-gray);margin-bottom:12px;"><i class="fas fa-heart" style="color:#FF6B9D;"></i> Motivasi Cepat</div><div style="display:flex;flex-direction:column;gap:8px;">${motivasiHTML}</div></div><div class="card"><div class="card-header"><div class="card-title">Riwayat Notifikasi</div><button class="btn btn-danger btn-sm" onclick="clearAllNotifs()"><i class="fas fa-trash"></i> Hapus Semua</button></div><div id="modNotifList">${notifs.length===0?'<div class="empty-state" style="padding:30px;"><i class="fas fa-bell-slash"></i><p>Belum ada notifikasi</p></div>':notifs.map(n=>`<div style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:flex-start;"><div style="width:32px;height:32px;border-radius:50%;background:${n.icon_bg||'rgba(201,168,76,0.15)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas ${n.icon||'fa-bell'}" style="color:${n.icon_color||'var(--gold)'};font-size:0.8rem;"></i></div><div style="flex:1;"><div style="font-size:0.85rem;font-weight:500;">${n.title}</div><div style="font-size:0.78rem;color:var(--light-gray);margin-top:2px;">${n.message}</div><div style="font-size:0.68rem;color:var(--gray2);margin-top:4px;">${new Date(n.created_at).toLocaleString('id-ID')} · ${n.target_role}</div></div><button class="btn btn-danger btn-sm btn-icon" onclick="deleteNotif('${n.id}')"><i class="fas fa-times"></i></button></div>`).join('')}</div></div></div></div>`;
 }
 async function sendNotification() {
   const title = document.getElementById('notifTitle').value.trim(); const message = document.getElementById('notifMessage').value.trim(); const target = document.getElementById('notifTarget').value;
@@ -1427,7 +1449,14 @@ async function sendNotification() {
   if (db) { const { error } = await db.from('notifications').insert([{ title, message, target_role: target, icon: 'fa-bell', icon_bg: 'rgba(201,168,76,0.15)', icon_color: '#C9A84C', is_read: false, created_at: new Date().toISOString() }]); if (error) { showToast('Gagal: ' + error.message, 'error'); return; } }
   showToast('Notifikasi berhasil dikirim!', 'success'); document.getElementById('notifTitle').value = ''; document.getElementById('notifMessage').value = ''; await renderModNotifications();
 }
-window.quickNotif = async (title, target, message) => { if (db) await db.from('notifications').insert([{ title, message, target_role: target, icon: 'fa-bolt', icon_bg: 'rgba(201,168,76,0.15)', icon_color: '#C9A84C', is_read: false, created_at: new Date().toISOString() }]); showToast(`Reminder dikirim ke ${target}!`, 'success'); await renderModNotifications(); };
+window.quickNotif = async (title, target, message, icon, color) => {
+  icon = icon || 'fa-bolt'; color = color || '#C9A84C';
+  // Build a soft background tint from the color
+  const bg = `${color}26`; // ~15% opacity hex suffix
+  if (db) await db.from('notifications').insert([{ title, message, target_role: target, icon, icon_bg: bg, icon_color: color, is_read: false, created_at: new Date().toISOString() }]);
+  showToast(`Terkirim ke ${target}!`, 'success');
+  await renderModNotifications();
+};
 window.deleteNotif = async (id) => { if (db) await db.from('notifications').delete().eq('id', id); await renderModNotifications(); };
 window.clearAllNotifs = async () => { if (!confirm('Hapus semua notifikasi?')) return; if (db) await db.from('notifications').delete().neq('id', '00000000-0000-0000-0000-000000000000'); showToast('Notifikasi dihapus', 'info'); await renderModNotifications(); };
 window.dismissPopupNotif = dismissPopupNotif;
@@ -2534,13 +2563,16 @@ async function renderHostInput() {
         ${pending.length===0 ? `<div style="padding:30px 0;text-align:center;color:var(--green);"><i class="fas fa-check-circle" style="font-size:2rem;margin-bottom:10px;display:block;"></i>Semua report sudah diisi! 🎉</div>` :
         `<div>${pending.map(s=>{
           const totalM = s.sessions_count*s.session_minutes;
+          // Parse session times from notes (format: "Sesi 1: 19:00–20:00, Sesi 2: 21:00–22:00")
+          const parsedSess = parseSessionsFromNotes(s.notes, s.sessions_count, s.start_time, s.session_minutes);
+          const sessDataB64 = encodeURIComponent(JSON.stringify(parsedSess));
           return `<div class="session-row" style="grid-template-columns:auto 1fr auto;">
             <div class="session-num" style="background:linear-gradient(135deg,#FF6B9D,var(--gold-dark));color:white;"><i class="fas fa-calendar-day"></i></div>
             <div>
               <div class="session-time">${s.schedule_date}</div>
               <div class="session-duration">${s.sessions_count} sesi · jadwal ${s.start_time} · estimasi ${minutesToHM(totalM)}</div>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="openHostReportForm('${s.id}','${s.schedule_date}',${s.sessions_count},${s.session_minutes})"><i class="fas fa-pen"></i> Isi</button>
+            <button class="btn btn-primary btn-sm" onclick="openHostReportForm('${s.id}','${s.schedule_date}',${s.sessions_count},${s.session_minutes},'${sessDataB64}')"><i class="fas fa-pen"></i> Isi</button>
           </div>`;
         }).join('')}</div>`}
       </div>
@@ -2565,36 +2597,71 @@ async function renderHostInput() {
   `;
 }
 
-window.openHostReportForm = (schedId, dateStr, sessions, sessionMin) => {
+/* Parse "Sesi 1: 19:00–20:00 (note), Sesi 2: 21:00–22:00" → [{start,end,note}, ...]
+   Falls back to evenly-distributed sessions starting from start_time if parsing fails. */
+window.parseSessionsFromNotes = (notes, sessionsCount, startTime, sessionMin) => {
+  const out = [];
+  if (notes && typeof notes === 'string') {
+    // Match Sesi N: HH:MM–HH:MM (or HH:MM-HH:MM with regular dash)
+    const re = /Sesi\s*\d+\s*:\s*(\d{1,2}:\d{2})\s*[–\-]\s*(\d{1,2}:\d{2})/gi;
+    let m;
+    while ((m = re.exec(notes)) !== null) {
+      out.push({ start: m[1].length===4 ? '0'+m[1] : m[1], end: m[2].length===4 ? '0'+m[2] : m[2] });
+    }
+  }
+  // Fallback: build evenly from start_time + session_minutes
+  if (out.length < sessionsCount && startTime) {
+    out.length = 0;
+    let cur = startTime;
+    for (let i = 0; i < sessionsCount; i++) {
+      const [h,mn] = cur.split(':').map(Number);
+      const startMins = h*60 + mn;
+      const endMins = startMins + (sessionMin||60);
+      const eh = Math.floor(endMins/60) % 24, em = endMins % 60;
+      const endStr = `${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+      out.push({ start: cur, end: endStr });
+      cur = endStr;
+    }
+  }
+  return out.slice(0, sessionsCount);
+};
+
+window.openHostReportForm = (schedId, dateStr, sessions, sessionMin, sessDataB64) => {
   const dateObj = new Date(dateStr + 'T00:00:00');
   const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
   const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
   const dateLabel = `${dayNames[dateObj.getDay()]}, ${dateObj.getDate()} ${monthNames[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
 
-  // Build session fields (max 2 for simplicity, expandable)
+  // Decode session data from moderator schedule (jam mulai & selesai sudah di-set)
+  let parsedSess = [];
+  try { parsedSess = sessDataB64 ? JSON.parse(decodeURIComponent(sessDataB64)) : []; } catch(e) { parsedSess = []; }
+
+  // Build session fields — jam mulai & selesai readonly (mengikuti jadwal moderator)
   let sessFields = '';
   for (let i = 0; i < sessions; i++) {
+    const sStart = (parsedSess[i] && parsedSess[i].start) || '';
+    const sEnd   = (parsedSess[i] && parsedSess[i].end)   || '';
     sessFields += `
       <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(201,168,76,0.15);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
           <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--gold-dark),var(--gold));display:flex;align-items:center;justify-content:center;color:var(--black);font-weight:700;font-size:0.85rem;">${i+1}</div>
           <div style="font-family:var(--font-ui);font-size:0.82rem;font-weight:600;color:var(--gold);">Sesi ${i+1}</div>
-          <div id="sess${i}_duration_label" style="margin-left:auto;font-size:0.72rem;color:var(--light-gray);"></div>
+          <div id="sess${i}_duration_label" style="margin-left:auto;font-size:0.72rem;color:var(--green);"></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Jam Mulai *</label>
-            <input type="time" class="form-input" id="sess${i}_start" onchange="updateSessionCalc(${i})" placeholder="--:--">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px;">Jam Mulai <i class="fas fa-lock" style="font-size:0.65rem;color:var(--gold);" title="Dari jadwal moderator"></i></label>
+            <input type="time" class="form-input" id="sess${i}_start" value="${sStart}" readonly style="background:rgba(201,168,76,0.06);cursor:not-allowed;color:var(--gold);">
           </div>
           <div class="form-group" style="margin-bottom:0;">
-            <label class="form-label">Jam Selesai *</label>
-            <input type="time" class="form-input" id="sess${i}_end" onchange="updateSessionCalc(${i})" placeholder="--:--">
+            <label class="form-label" style="display:flex;align-items:center;gap:6px;">Jam Selesai <i class="fas fa-lock" style="font-size:0.65rem;color:var(--gold);" title="Dari jadwal moderator"></i></label>
+            <input type="time" class="form-input" id="sess${i}_end" value="${sEnd}" readonly style="background:rgba(201,168,76,0.06);cursor:not-allowed;color:var(--gold);">
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Total GMV Sesi ${i+1} (Rp) *</label>
-            <input type="number" min="0" class="form-input" id="sess${i}_gmv" placeholder="misal: 1500000" oninput="updateTotals()">
+            <input type="number" min="0" class="form-input" id="sess${i}_gmv" placeholder="misal: 1500000" oninput="updateTotals()" autofocus>
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Total Piece Sesi ${i+1} *</label>
@@ -2617,6 +2684,11 @@ window.openHostReportForm = (schedId, dateStr, sessions, sessionMin) => {
       <input type="hidden" id="rh_sessions_count" value="${sessions}">
       <input type="hidden" id="rh_sched_id" value="${schedId}">
       <input type="hidden" id="rh_date" value="${dateStr}">
+
+      <div style="background:rgba(76,140,224,0.06);border:1px solid rgba(76,140,224,0.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;">
+        <i class="fas fa-info-circle" style="color:var(--blue);margin-top:2px;font-size:0.85rem;"></i>
+        <div style="font-size:0.78rem;color:var(--white2);line-height:1.5;">Jam mulai & selesai sudah <strong style="color:var(--gold);">otomatis terisi</strong> dari jadwal moderator. Kamu hanya perlu mengisi <strong style="color:#FF6B9D;">Total GMV</strong> dan <strong style="color:#FF6B9D;">Total Piece</strong> per sesi.</div>
+      </div>
 
       ${sessFields}
 
@@ -2649,6 +2721,11 @@ window.openHostReportForm = (schedId, dateStr, sessions, sessionMin) => {
       <button class="btn btn-primary" onclick="submitHostReport()"><i class="fas fa-paper-plane"></i> Kirim ke Moderator</button>
     </div>
   `, 'modal-md');
+
+  // Auto-calculate durations & totals on open (since jam mulai/selesai sudah pre-filled)
+  setTimeout(() => {
+    for (let i = 0; i < sessions; i++) updateSessionCalc(i);
+  }, 50);
 };
 
 window.updateSessionCalc = (idx) => {
