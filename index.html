@@ -339,6 +339,26 @@ tr:last-child td { border-bottom: none; }
 .empty-state p { font-size: 0.85rem; color: var(--gray2); }
 .gradient-text { background: linear-gradient(135deg, var(--gold-light), var(--gold), var(--gold-dark)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
+/* ===== KELOLA LIVE STYLES ===== */
+.klv-cal-day { min-height: 80px; }
+.klv-today-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); vertical-align: middle; margin-left: 4px; animation: pulse 1.5s infinite; }
+.klv-day-badges { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+.klv-host-chip { font-family: var(--font-ui); font-size: 0.55rem; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: rgba(255,107,157,0.25); color: #FF6B9D; border: 1px solid rgba(255,107,157,0.4); white-space: nowrap; }
+.klv-hol-chip { font-family: var(--font-ui); font-size: 0.52rem; padding: 2px 5px; border-radius: 4px; background: rgba(224,82,82,0.2); color: var(--red); }
+.klv-live-count { position: absolute; bottom: 5px; right: 6px; font-family: var(--font-ui); font-size: 0.58rem; color: #FF6B9D; display: flex; align-items: center; gap: 3px; }
+.klv-sched-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(201,168,76,0.18); border-radius: 12px; padding: 14px 16px; transition: var(--transition); }
+.klv-sched-card:hover { border-color: rgba(201,168,76,0.35); background: rgba(201,168,76,0.04); }
+.klv-sched-hol { background: rgba(224,82,82,0.06); border-color: rgba(224,82,82,0.25); }
+.klv-host-avatar { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #FF6B9D, var(--gold)); color: white; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; flex-shrink: 0; }
+.klv-session-block { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 10px 12px; }
+.klv-s1 { border-left: 3px solid var(--gold); }
+.klv-s2 { border-left: 3px solid #FF6B9D; }
+.klv-session-label { font-family: var(--font-ui); font-size: 0.62rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--light-gray); margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+.klv-s1 .klv-session-label { color: var(--gold); }
+.klv-s2 .klv-session-label { color: #FF6B9D; }
+.klv-session-time { font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600; color: var(--white); }
+.klv-session-dur { font-size: 0.68rem; color: var(--light-gray); margin-top: 2px; }
+.grid-2-klv { display: grid; grid-template-columns: 1fr 1fr; }
 /* ===== FITUR BARU: AD-LOCK & MISSING LEADS ===== */
 .cal-day.no-ad-locked { opacity: 0.55; cursor: not-allowed !important; }
 .cal-day.no-ad-locked:hover { border-color: rgba(255,255,255,0.05) !important; background: rgba(255,255,255,0.03) !important; transform: none !important; }
@@ -700,7 +720,7 @@ function setupSidebar(role) {
       { id: 'mod-tasks', icon: 'fas fa-list-check', label: 'Semua Task' },
       { id: 'mod-analytics', icon: 'fas fa-chart-line', label: 'Analitik Semua Role' },
       { section: 'HOST LIVE' },
-      { id: 'mod-host-schedule', icon: 'fas fa-calendar-plus', label: 'Atur Jadwal Live' },
+      { id: 'mod-host-schedule', icon: 'fas fa-video', label: 'Kelola Live' },
       { id: 'mod-host-reports', icon: 'fas fa-clipboard-check', label: 'ACC Report Harian' },
       { id: 'mod-host-overview', icon: 'fas fa-video', label: 'Performa Host' },
       { section: 'MANAJEMEN' },
@@ -754,7 +774,7 @@ function navigateTo(sectionId) {
   const titles = {
     'mod-dashboard':'Dashboard Semua Role','mod-calendar':'Kelola Iklan & Kalender','mod-tasks':'Semua Task',
     'mod-analytics':'Analitik Semua Role','mod-notifications':'Kirim Notifikasi','mod-leads':'Semua Data Leads',
-    'mod-host-schedule':'Atur Jadwal Live Host','mod-host-reports':'ACC Report Host Live','mod-host-overview':'Performa Host Live',
+    'mod-host-schedule':'Kelola Live','mod-host-reports':'ACC Report Host Live','mod-host-overview':'Performa Host Live',
     'admin-dashboard':'Dashboard Admin','admin-calendar':'Kalender Leads Admin','admin-analytics':'Analitik Admin',
     'admin-table':'Data Customers Admin','b2b-dashboard':'Dashboard B2B','b2b-calendar':'Kalender Leads B2B',
     'b2b-analytics':'Analitik B2B','b2b-table':'Data Customers B2B','guest-dashboard':'Analitik & Overview','guest-tasks':'Semua Task',
@@ -2465,118 +2485,428 @@ async function renderHostTarget() {
   }
 }
 
-/* -----------  MODERATOR: ATUR JADWAL HOST  ----------- */
+/* -----------  MODERATOR: KELOLA LIVE (PER TANGGAL)  ----------- */
+
+// Helper: get live schedules for a specific date
+async function getLiveSchedulesByDate(dateStr) {
+  if (!db) return [];
+  const { data, error } = await db.from('host_schedules').select('*').eq('schedule_date', dateStr).order('created_at', { ascending: true });
+  if (error) return [];
+  return data || [];
+}
+
 async function renderModHostSchedule() {
-  const schedules = await getHostSchedules(null, currentModHostMonth, currentModHostYear);
+  const m = currentModHostMonth, y = currentModHostYear;
+  // Load all schedules for the month
+  const allSched = await getHostSchedules(null, m, y);
+  // Build map: date -> schedules[]
+  const schedMap = {};
+  allSched.forEach(s => {
+    if (!schedMap[s.schedule_date]) schedMap[s.schedule_date] = [];
+    schedMap[s.schedule_date].push(s);
+  });
+
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+
+  // Count stats
+  const totalLive = allSched.filter(s=>!s.is_holiday).length;
+  const totalHoliday = allSched.filter(s=>s.is_holiday).length;
+  const uniqueHosts = [...new Set(allSched.filter(s=>!s.is_holiday).map(s=>s.host_user))];
+
+  // Build calendar grid
+  let calCells = '';
+  for (let i = 0; i < firstDay; i++) calCells += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(y, m, d).getDay();
+    const isToday = dateStr === todayStr;
+    const holiday = HOLIDAYS_2026[dateStr];
+    const daySched = schedMap[dateStr] || [];
+    const hasLive = daySched.some(s=>!s.is_holiday);
+    const hasHol = daySched.some(s=>s.is_holiday);
+    let cls = 'cal-day klv-cal-day';
+    if (isToday) cls += ' today';
+    if (dow === 0 || !!holiday) cls += ' sunday';
+    if (!!holiday) cls += ' national-holiday';
+    if (hasLive) cls += ' live-day';
+    if (hasHol && !hasLive) cls += ' holiday-day';
+    let badges = '';
+    if (hasLive) {
+      const hosts = [...new Set(daySched.filter(s=>!s.is_holiday).map(s=>HOST_USERS[s.host_user]?.name || s.host_user))];
+      badges = hosts.map(h=>`<div class="klv-host-chip">${h}</div>`).join('');
+    }
+    if (hasHol) badges += `<div class="klv-hol-chip">🏖️ Libur</div>`;
+    if (!!holiday) badges += `<div class="holiday-label">${holiday}</div>`;
+    const liveCount = daySched.filter(s=>!s.is_holiday).length;
+    calCells += `<div class="${cls}" onclick="openKeloleLiveDay('${dateStr}')">
+      <div class="day-num">${d}${isToday?'<span class="klv-today-dot"></span>':''}</div>
+      <div class="klv-day-badges">${badges}</div>
+      ${liveCount>0?`<div class="klv-live-count"><i class="fas fa-video"></i> ${liveCount}</div>`:''}
+    </div>`;
+  }
+
   document.getElementById('pageContent').innerHTML = `
     <div style="animation:fadeIn 0.4s ease;">
+
+      <!-- Header Stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:20px;">
+        <div class="stat-card" style="animation-delay:0s;">
+          <div class="stat-icon stat-icon-gold"><i class="fas fa-video"></i></div>
+          <div class="stat-value">${totalLive}</div>
+          <div class="stat-label">Sesi Live Bulan Ini</div>
+        </div>
+        <div class="stat-card" style="animation-delay:.07s;">
+          <div class="stat-icon stat-icon-red"><i class="fas fa-umbrella-beach"></i></div>
+          <div class="stat-value">${totalHoliday}</div>
+          <div class="stat-label">Hari Libur</div>
+        </div>
+        <div class="stat-card" style="animation-delay:.14s;">
+          <div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div>
+          <div class="stat-value">${uniqueHosts.length}</div>
+          <div class="stat-label">Host Aktif</div>
+        </div>
+        <div class="stat-card" style="animation-delay:.21s;">
+          <div class="stat-icon stat-icon-green"><i class="fas fa-calendar-check"></i></div>
+          <div class="stat-value">${[...new Set(allSched.filter(s=>!s.is_holiday).map(s=>s.schedule_date))].length}</div>
+          <div class="stat-label">Hari Live</div>
+        </div>
+      </div>
+
+      <!-- Kalender -->
       <div class="card" style="margin-bottom:20px;">
-        <div class="card-header"><div><div class="card-title"><i class="fas fa-calendar-plus" style="color:#FF6B9D;"></i> Atur Jadwal Live Host</div><div class="card-subtitle">Tambahkan jadwal live atau hari libur untuk Nina & Sekar</div></div>
-          <button class="btn btn-primary btn-sm" onclick="openModHostScheduleForm()"><i class="fas fa-plus"></i> Tambah Jadwal</button>
+        <div class="card-header">
+          <div>
+            <div class="card-title"><i class="fas fa-video" style="color:#FF6B9D;margin-right:8px;"></i>Kelola Live</div>
+            <div class="card-subtitle">Klik tanggal untuk atur jadwal live host per hari</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="modHostCalPrev()"><i class="fas fa-chevron-left"></i></button>
+            <div style="font-family:var(--font-display);font-size:1.15rem;font-weight:600;min-width:140px;text-align:center;">${MONTHS[m]} ${y}</div>
+            <button class="btn btn-secondary btn-sm btn-icon" onclick="modHostCalNext()"><i class="fas fa-chevron-right"></i></button>
+          </div>
         </div>
-        <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
-          <button class="btn btn-secondary btn-sm btn-icon" onclick="modHostCalPrev()"><i class="fas fa-chevron-left"></i></button>
-          <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:600;flex:1;text-align:center;">${MONTHS[currentModHostMonth]} ${currentModHostYear}</div>
-          <button class="btn btn-secondary btn-sm btn-icon" onclick="modHostCalNext()"><i class="fas fa-chevron-right"></i></button>
+        <!-- Legend -->
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;font-size:0.72rem;font-family:var(--font-ui);">
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(255,107,157,0.3);border:1px solid rgba(255,107,157,0.6);display:inline-block;"></span>Ada Live</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;background:rgba(224,82,82,0.15);border:1px solid rgba(224,82,82,0.4);display:inline-block;"></span>Hari Libur</span>
+          <span style="display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:3px;border:1px solid var(--gold);display:inline-block;"></span>Hari Ini</span>
         </div>
-        ${schedules.length===0 ? `<div class="text-muted text-sm" style="padding:30px 0;text-align:center;">Belum ada jadwal pada bulan ini.</div>` :
+        <div class="calendar-grid">
+          ${['Min','Sen','Sel','Rab','Kam','Jum','Sab'].map(d=>`<div class="cal-day-label">${d}</div>`).join('')}
+          ${calCells}
+        </div>
+      </div>
+
+      <!-- Daftar jadwal bulan ini -->
+      <div class="card">
+        <div class="card-header">
+          <div><div class="card-title">Jadwal Live – ${MONTHS[m]} ${y}</div><div class="card-subtitle">${totalLive} sesi terjadwal</div></div>
+        </div>
+        ${allSched.filter(s=>!s.is_holiday).length===0 ? `<div class="empty-state"><i class="fas fa-video-slash"></i><h3>Belum ada jadwal live</h3><p>Klik tanggal di kalender untuk menambahkan.</p></div>` :
         `<div style="overflow-x:auto;"><table>
-          <thead><tr><th>Tanggal</th><th>Host</th><th>Tipe</th><th>Mulai</th><th>Sesi</th><th>Durasi/Sesi</th><th>Total</th><th>Aksi</th></tr></thead>
-          <tbody>${schedules.map(s=>`<tr>
-            <td>${s.schedule_date}</td>
-            <td><span class="host-name-pill">${HOST_USERS[s.host_user]?.name || s.host_user}</span></td>
-            <td>${s.is_holiday?'<span class="status-pill status-rejected">🏖️ LIBUR</span>':'<span class="status-pill status-approved">🎬 LIVE</span>'}</td>
-            <td>${s.is_holiday?'-':s.start_time}</td>
-            <td>${s.is_holiday?'-':s.sessions_count}</td>
-            <td>${s.is_holiday?'-':s.session_minutes+'m'}</td>
-            <td>${s.is_holiday?'-':minutesToHM(s.sessions_count*s.session_minutes)}</td>
-            <td>
-              <button class="btn btn-secondary btn-sm btn-icon" onclick="openModHostScheduleForm('${s.id}')"><i class="fas fa-pen"></i></button>
-              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteHostSchedule('${s.id}')"><i class="fas fa-trash"></i></button>
-            </td>
-          </tr>`).join('')}</tbody>
+          <thead><tr><th>Tanggal</th><th>Host</th><th>Sesi 1</th><th>Sesi 2</th><th>Total Jam</th><th>Status</th><th>Aksi</th></tr></thead>
+          <tbody>${allSched.filter(s=>!s.is_holiday).sort((a,b)=>a.schedule_date.localeCompare(b.schedule_date)).map(s=>{
+            const s1start = s.session1_start||s.start_time||'-'; const s1end = s.session1_end||'-';
+            const s2start = s.session2_start||'-'; const s2end = s.session2_end||'-';
+            const totalMin = calcTotalMinutes(s);
+            return `<tr>
+              <td><strong>${s.schedule_date}</strong></td>
+              <td><span class="host-name-pill"><i class="fas fa-user" style="font-size:.65rem;"></i> ${s.host_name||HOST_USERS[s.host_user]?.name||s.host_user}</span></td>
+              <td>${s1start!=='-'?`<span style="font-family:var(--font-ui);font-size:.8rem;color:var(--gold);">${s1start}</span>${s1end!=='-'?' – <span style="color:var(--white2);">'+s1end+'</span>':''}`:'-'}</td>
+              <td>${s2start!=='-'?`<span style="font-family:var(--font-ui);font-size:.8rem;color:#FF6B9D;">${s2start}</span>${s2end!=='-'?' – <span style="color:var(--white2);">'+s2end+'</span>':''}`:'-'}</td>
+              <td><span style="font-family:var(--font-ui);font-size:.85rem;color:var(--green);">${minutesToHM(totalMin)}</span></td>
+              <td><span class="status-pill status-approved">🎬 LIVE</span></td>
+              <td style="display:flex;gap:6px;">
+                <button class="btn btn-secondary btn-sm btn-icon" title="Edit" onclick="openKeloleLiveDay('${s.schedule_date}')"><i class="fas fa-pen"></i></button>
+                <button class="btn btn-danger btn-sm btn-icon" title="Hapus" onclick="deleteHostSchedule('${s.id}')"><i class="fas fa-trash"></i></button>
+              </td>
+            </tr>`;
+          }).join('')}</tbody>
         </table></div>`}
       </div>
     </div>
   `;
 }
+
+function calcTotalMinutes(s) {
+  let total = 0;
+  const calcRange = (start, end) => {
+    if (!start || !end || start==='-' || end==='-') return 0;
+    const [sh,sm] = start.split(':').map(Number);
+    const [eh,em] = end.split(':').map(Number);
+    const diff = (eh*60+em) - (sh*60+sm);
+    return diff > 0 ? diff : 0;
+  };
+  total += calcRange(s.session1_start||s.start_time, s.session1_end);
+  total += calcRange(s.session2_start, s.session2_end);
+  // fallback to old format
+  if (total === 0 && s.sessions_count && s.session_minutes) total = s.sessions_count * s.session_minutes;
+  return total;
+}
+
 window.modHostCalPrev = async () => { currentModHostMonth--; if (currentModHostMonth<0){currentModHostMonth=11;currentModHostYear--;} await renderModHostSchedule(); };
 window.modHostCalNext = async () => { currentModHostMonth++; if (currentModHostMonth>11){currentModHostMonth=0;currentModHostYear++;} await renderModHostSchedule(); };
 
-window.openModHostScheduleForm = async (id = null) => {
-  let existing = null;
-  if (id && db) {
-    const { data } = await db.from('host_schedules').select('*').eq('id', id).limit(1);
-    existing = data && data[0];
-  }
-  const today = new Date().toISOString().slice(0,10);
-  showModal('modHostSchedModal', `
-    <div class="modal-header"><div class="modal-title">${existing?'Edit':'Tambah'} Jadwal Live</div><button class="modal-close" onclick="closeModal('modHostSchedModal')"><i class="fas fa-times"></i></button></div>
-    <div class="modal-body">
-      <div class="form-group"><label class="form-label">Host *</label>
-        <select class="form-select" id="hs_host">
-          <option value="nina" ${existing?.host_user==='nina'?'selected':''}>Nina (Target 40jt)</option>
-          <option value="sekar" ${existing?.host_user==='sekar'?'selected':''}>Sekar (Target 20jt)</option>
-        </select>
+// Open per-date Kelola Live modal (shows existing + allows add/edit)
+window.openKeloleLiveDay = async (dateStr) => {
+  const daySched = await getLiveSchedulesByDate(dateStr);
+  const liveSched = daySched.filter(s=>!s.is_holiday);
+  const holSched  = daySched.filter(s=>s.is_holiday);
+  const [yyyy,mm,dd] = dateStr.split('-');
+  const dayName = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date(dateStr).getDay()];
+  const displayDate = `${dayName}, ${dd} ${MONTHS[parseInt(mm)-1]} ${yyyy}`;
+  const holiday = HOLIDAYS_2026[dateStr];
+
+  showModal('klvDayModal', `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="fas fa-video" style="color:#FF6B9D;margin-right:8px;"></i>Kelola Live</div>
+        <div style="font-size:.82rem;color:var(--light-gray);margin-top:2px;">${displayDate}${holiday?` · <span style="color:var(--red);">🎌 ${holiday}</span>`:''}</div>
       </div>
-      <div class="form-group"><label class="form-label">Tanggal *</label><input type="date" class="form-input" id="hs_date" value="${existing?.schedule_date || today}"></div>
-      <div class="form-group"><label class="form-label">Tipe Hari *</label>
-        <select class="form-select" id="hs_type" onchange="document.getElementById('hs_liveFields').style.display=this.value==='live'?'block':'none'">
-          <option value="live" ${!existing?.is_holiday?'selected':''}>🎬 Hari Live</option>
-          <option value="holiday" ${existing?.is_holiday?'selected':''}>🏖️ Hari Libur</option>
-        </select>
+      <button class="modal-close" onclick="closeModal('klvDayModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px;">
+
+      <!-- Existing live schedules for the day -->
+      <div id="klv_existing_list" style="margin-bottom:20px;">
+        ${liveSched.length===0 && holSched.length===0 ? `<div style="text-align:center;padding:16px 0;color:var(--light-gray);font-size:.85rem;"><i class="fas fa-calendar-xmark" style="display:block;font-size:1.5rem;margin-bottom:8px;"></i>Belum ada jadwal untuk hari ini</div>` :
+        `<div style="display:flex;flex-direction:column;gap:10px;">
+          ${holSched.map(s=>`<div class="klv-sched-card klv-sched-hol">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div><i class="fas fa-umbrella-beach" style="color:var(--red);margin-right:8px;"></i><strong style="font-family:var(--font-ui);font-size:.85rem;">HARI LIBUR</strong>${s.notes?`<span style="color:var(--light-gray);font-size:.78rem;margin-left:8px;">${s.notes}</span>`:''}</div>
+              <button class="btn btn-danger btn-sm btn-icon" onclick="deleteHostScheduleInline('${s.id}','${dateStr}')"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>`).join('')}
+          ${liveSched.map(s=>`<div class="klv-sched-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div class="klv-host-avatar">${(s.host_name||HOST_USERS[s.host_user]?.name||'?')[0]}</div>
+                <div>
+                  <div style="font-family:var(--font-ui);font-size:.88rem;font-weight:600;">${s.host_name||HOST_USERS[s.host_user]?.name||s.host_user}</div>
+                  <div style="font-size:.72rem;color:var(--light-gray);">Host Live</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-secondary btn-sm btn-icon" title="Edit" onclick="openKlvEditForm('${s.id}','${dateStr}')"><i class="fas fa-pen"></i></button>
+                <button class="btn btn-danger btn-sm btn-icon" title="Hapus" onclick="deleteHostScheduleInline('${s.id}','${dateStr}')"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div class="klv-session-block klv-s1">
+                <div class="klv-session-label"><i class="fas fa-1"></i> Sesi 1</div>
+                <div class="klv-session-time">${s.session1_start||s.start_time||'-'} <span style="color:var(--light-gray);">–</span> ${s.session1_end||'-'}</div>
+                ${s.session1_start&&s.session1_end?`<div class="klv-session-dur">${minutesToHM(calcTotalMinutes({session1_start:s.session1_start||s.start_time,session1_end:s.session1_end,session2_start:null,session2_end:null}))}</div>`:''}
+              </div>
+              <div class="klv-session-block klv-s2">
+                <div class="klv-session-label"><i class="fas fa-2"></i> Sesi 2</div>
+                <div class="klv-session-time">${s.session2_start||'-'} <span style="color:var(--light-gray);">–</span> ${s.session2_end||'-'}</div>
+                ${s.session2_start&&s.session2_end?`<div class="klv-session-dur">${minutesToHM(calcTotalMinutes({session1_start:null,session1_end:null,session2_start:s.session2_start,session2_end:s.session2_end}))}</div>`:''}
+              </div>
+            </div>
+            ${s.notes?`<div style="margin-top:10px;font-size:.78rem;color:var(--light-gray);padding:8px 12px;background:rgba(255,255,255,.03);border-radius:6px;"><i class="fas fa-note-sticky" style="color:var(--gold);margin-right:6px;"></i>${s.notes}</div>`:''}
+          </div>`).join('')}
+        </div>`}
       </div>
-      <div id="hs_liveFields" style="display:${existing?.is_holiday?'none':'block'};">
-        <div class="form-group"><label class="form-label">Jam Mulai *</label><input type="time" class="form-input" id="hs_start" value="${existing?.start_time || '19:00'}"></div>
-        <div class="grid-2" style="gap:12px;">
-          <div class="form-group"><label class="form-label">Jumlah Sesi *</label><input type="number" min="1" max="10" class="form-input" id="hs_sessions" value="${existing?.sessions_count || 2}"></div>
-          <div class="form-group"><label class="form-label">Durasi/Sesi (menit) *</label><input type="number" min="15" max="240" class="form-input" id="hs_minutes" value="${existing?.session_minutes || 60}"></div>
+
+      <!-- Tambah host baru untuk hari ini -->
+      <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:18px;">
+        <div style="font-family:var(--font-ui);font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;"><i class="fas fa-plus-circle" style="margin-right:6px;"></i>Tambah Host untuk Hari Ini</div>
+
+        <div class="form-group">
+          <label class="form-label">Nama Host *</label>
+          <input type="text" class="form-input" id="klv_host_name" placeholder="Nama host, misal: Nina" list="klv_host_list">
+          <datalist id="klv_host_list">
+            <option value="Nina">
+            <option value="Sekar">
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Akun Host</label>
+          <select class="form-select" id="klv_host_user">
+            <option value="nina">Nina</option>
+            <option value="sekar">Sekar</option>
+            <option value="other">Lainnya / Tidak ada</option>
+          </select>
+        </div>
+
+        <!-- Sesi 1 -->
+        <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-family:var(--font-ui);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="width:20px;height:20px;border-radius:6px;background:var(--gold);color:var(--black);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;">1</span> Sesi 1</div>
+          <div class="grid-2" style="gap:12px;">
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Jam Mulai</label><input type="time" class="form-input" id="klv_s1_start" value="14:00"></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Jam Selesai</label><input type="time" class="form-input" id="klv_s1_end" value="16:00"></div>
+          </div>
+        </div>
+
+        <!-- Sesi 2 -->
+        <div style="background:rgba(255,107,157,.06);border:1px solid rgba(255,107,157,.2);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+          <div style="font-family:var(--font-ui);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#FF6B9D;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="width:20px;height:20px;border-radius:6px;background:#FF6B9D;color:white;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;">2</span> Sesi 2 <span style="font-size:.65rem;color:var(--light-gray);font-weight:400;margin-left:4px;">(opsional)</span></div>
+          <div class="grid-2" style="gap:12px;">
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Jam Mulai</label><input type="time" class="form-input" id="klv_s2_start" placeholder="--:--"></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Jam Selesai</label><input type="time" class="form-input" id="klv_s2_end" placeholder="--:--"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Catatan (opsional)</label>
+          <textarea class="form-textarea" id="klv_notes" rows="2" placeholder="Tema produk, target khusus, dll..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="saveKlvSchedule('${dateStr}')" style="flex:1;justify-content:center;"><i class="fas fa-save"></i> Simpan Jadwal Live</button>
+          <button class="btn btn-danger btn-sm" onclick="saveKlvHoliday('${dateStr}')" style="white-space:nowrap;"><i class="fas fa-umbrella-beach"></i> Tandai Libur</button>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Catatan (opsional)</label><textarea class="form-textarea" id="hs_notes" rows="2" placeholder="Misal: tema produk, target khusus...">${existing?.notes || ''}</textarea></div>
+    </div>
+  `, 'modal-lg');
+};
+
+// Open edit form for existing schedule
+window.openKlvEditForm = async (id, dateStr) => {
+  if (!db) return;
+  const { data } = await db.from('host_schedules').select('*').eq('id', id).limit(1);
+  const s = data && data[0];
+  if (!s) return;
+  const [yyyy,mm,dd] = dateStr.split('-');
+  const dayName = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][new Date(dateStr).getDay()];
+  showModal('klvEditModal', `
+    <div class="modal-header">
+      <div class="modal-title"><i class="fas fa-pen" style="color:var(--gold);margin-right:8px;"></i>Edit Jadwal – ${dayName} ${dd} ${MONTHS[parseInt(mm)-1]} ${yyyy}</div>
+      <button class="modal-close" onclick="closeModal('klvEditModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nama Host *</label>
+        <input type="text" class="form-input" id="klvedit_host_name" value="${s.host_name||HOST_USERS[s.host_user]?.name||''}" list="klvedit_host_list">
+        <datalist id="klvedit_host_list"><option value="Nina"><option value="Sekar"></datalist>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Akun Host</label>
+        <select class="form-select" id="klvedit_host_user">
+          <option value="nina" ${s.host_user==='nina'?'selected':''}>Nina</option>
+          <option value="sekar" ${s.host_user==='sekar'?'selected':''}>Sekar</option>
+          <option value="other" ${s.host_user==='other'?'selected':''}>Lainnya</option>
+        </select>
+      </div>
+      <div style="background:rgba(201,168,76,.06);border:1px solid rgba(201,168,76,.2);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+        <div style="font-family:var(--font-ui);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;"><span style="width:20px;height:20px;border-radius:6px;background:var(--gold);color:var(--black);display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;margin-right:6px;">1</span>Sesi 1</div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Jam Mulai</label><input type="time" class="form-input" id="klvedit_s1_start" value="${s.session1_start||s.start_time||'14:00'}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Jam Selesai</label><input type="time" class="form-input" id="klvedit_s1_end" value="${s.session1_end||'16:00'}"></div>
+        </div>
+      </div>
+      <div style="background:rgba(255,107,157,.06);border:1px solid rgba(255,107,157,.2);border-radius:10px;padding:14px 16px;margin-bottom:12px;">
+        <div style="font-family:var(--font-ui);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:#FF6B9D;margin-bottom:10px;"><span style="width:20px;height:20px;border-radius:6px;background:#FF6B9D;color:white;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;margin-right:6px;">2</span>Sesi 2 <span style="font-size:.65rem;color:var(--light-gray);margin-left:4px;">(opsional)</span></div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Jam Mulai</label><input type="time" class="form-input" id="klvedit_s2_start" value="${s.session2_start||''}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">Jam Selesai</label><input type="time" class="form-input" id="klvedit_s2_end" value="${s.session2_end||''}"></div>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Catatan</label><textarea class="form-textarea" id="klvedit_notes" rows="2">${s.notes||''}</textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modHostSchedModal')">Batal</button>
-      <button class="btn btn-primary" onclick="saveHostSchedule(${existing?`'${existing.id}'`:'null'})"><i class="fas fa-save"></i> Simpan</button>
+      <button class="btn btn-secondary" onclick="closeModal('klvEditModal')">Batal</button>
+      <button class="btn btn-primary" onclick="updateKlvSchedule('${id}','${dateStr}')"><i class="fas fa-save"></i> Simpan Perubahan</button>
     </div>
-  `, 'modal-md');
+  `);
 };
-window.saveHostSchedule = async (id) => {
-  const host = document.getElementById('hs_host').value;
-  const date = document.getElementById('hs_date').value;
-  const type = document.getElementById('hs_type').value;
-  const isHoliday = type === 'holiday';
-  const startTime = isHoliday ? null : document.getElementById('hs_start').value;
-  const sessions = isHoliday ? 0 : parseInt(document.getElementById('hs_sessions').value);
-  const minutes = isHoliday ? 0 : parseInt(document.getElementById('hs_minutes').value);
-  const notes = document.getElementById('hs_notes').value;
-  if (!date) { showToast('Tanggal wajib diisi', 'error'); return; }
-  if (!isHoliday) {
-    if (!startTime) { showToast('Jam mulai wajib diisi', 'error'); return; }
-    if (!sessions || sessions < 1) { showToast('Jumlah sesi minimal 1', 'error'); return; }
-    if (!minutes || minutes < 15) { showToast('Durasi minimal 15 menit', 'error'); return; }
-  }
-  const payload = { host_user: host, schedule_date: date, is_holiday: isHoliday,
-    start_time: startTime, sessions_count: sessions, session_minutes: minutes, notes: notes };
+
+window.updateKlvSchedule = async (id, dateStr) => {
+  const hostName = document.getElementById('klvedit_host_name').value.trim();
+  const hostUser = document.getElementById('klvedit_host_user').value;
+  const s1s = document.getElementById('klvedit_s1_start').value;
+  const s1e = document.getElementById('klvedit_s1_end').value;
+  const s2s = document.getElementById('klvedit_s2_start').value;
+  const s2e = document.getElementById('klvedit_s2_end').value;
+  const notes = document.getElementById('klvedit_notes').value;
+  if (!hostName) { showToast('Nama host wajib diisi', 'error'); return; }
+  if (!s1s || !s1e) { showToast('Jam sesi 1 wajib diisi', 'error'); return; }
+  const payload = { host_name: hostName, host_user: hostUser, session1_start: s1s, session1_end: s1e,
+    session2_start: s2s||null, session2_end: s2e||null, start_time: s1s, sessions_count: s2s?2:1,
+    session_minutes: calcTotalMinutes({session1_start:s1s,session1_end:s1e,session2_start:s2s,session2_end:s2e}), notes };
   if (db) {
-    let error;
-    if (id) ({ error } = await db.from('host_schedules').update(payload).eq('id', id));
-    else ({ error } = await db.from('host_schedules').insert([{ ...payload, created_at: new Date().toISOString() }]));
-    if (error) { showToast('Gagal menyimpan: ' + error.message, 'error'); return; }
-    // Notif untuk host
+    const { error } = await db.from('host_schedules').update(payload).eq('id', id);
+    if (error) { showToast('Gagal: '+error.message,'error'); return; }
     await db.from('notifications').insert([{
-      title: isHoliday ? '🏖️ Jadwal Libur Diset' : '🎬 Jadwal Live Baru',
-      message: isHoliday ? `Tanggal ${date} ditandai sebagai hari libur.` : `Live ${date} mulai ${startTime}, ${sessions} sesi × ${minutes}m.`,
-      target_role: 'host', target_user: host,
-      icon: isHoliday ? 'fa-umbrella-beach' : 'fa-video',
-      icon_bg: 'rgba(255,107,157,0.15)', icon_color: '#FF6B9D',
+      title: '📅 Jadwal Live Diperbarui',
+      message: `Jadwal ${dateStr} untuk ${hostName} telah diperbarui. Sesi 1: ${s1s}–${s1e}${s2s?`, Sesi 2: ${s2s}–${s2e}`:''}`,
+      target_role: 'host', target_user: hostUser,
+      icon: 'fa-calendar-check', icon_bg: 'rgba(201,168,76,0.15)', icon_color: 'var(--gold)',
       is_read: false, created_at: new Date().toISOString()
     }]);
   }
-  closeModal('modHostSchedModal');
-  showToast('Jadwal disimpan!', 'success');
+  closeModal('klvEditModal');
+  closeModal('klvDayModal');
+  showToast('Jadwal diperbarui!', 'success');
   renderModHostSchedule();
 };
+
+window.saveKlvSchedule = async (dateStr) => {
+  const hostName = document.getElementById('klv_host_name').value.trim();
+  const hostUser = document.getElementById('klv_host_user').value;
+  const s1s = document.getElementById('klv_s1_start').value;
+  const s1e = document.getElementById('klv_s1_end').value;
+  const s2s = document.getElementById('klv_s2_start').value;
+  const s2e = document.getElementById('klv_s2_end').value;
+  const notes = document.getElementById('klv_notes').value;
+  if (!hostName) { showToast('Nama host wajib diisi', 'error'); return; }
+  if (!s1s || !s1e) { showToast('Jam sesi 1 wajib diisi', 'error'); return; }
+  const totalMin = calcTotalMinutes({session1_start:s1s,session1_end:s1e,session2_start:s2s||null,session2_end:s2e||null});
+  const payload = { host_name: hostName, host_user: hostUser, schedule_date: dateStr, is_holiday: false,
+    session1_start: s1s, session1_end: s1e, session2_start: s2s||null, session2_end: s2e||null,
+    start_time: s1s, sessions_count: s2s?2:1, session_minutes: totalMin, notes,
+    created_at: new Date().toISOString() };
+  if (db) {
+    const { error } = await db.from('host_schedules').insert([payload]);
+    if (error) { showToast('Gagal: '+error.message,'error'); return; }
+    // Notif ke host
+    await db.from('notifications').insert([{
+      title: '🎬 Jadwal Live Ditambahkan',
+      message: `Kamu dijadwalkan live pada ${dateStr}. Sesi 1: ${s1s}–${s1e}${s2s?`, Sesi 2: ${s2s}–${s2e}`:''}. Total: ${minutesToHM(totalMin)}.`,
+      target_role: 'host', target_user: hostUser,
+      icon: 'fa-video', icon_bg: 'rgba(255,107,157,0.15)', icon_color: '#FF6B9D',
+      is_read: false, created_at: new Date().toISOString()
+    }]);
+  }
+  closeModal('klvDayModal');
+  showToast('Jadwal live disimpan!', 'success');
+  renderModHostSchedule();
+};
+
+window.saveKlvHoliday = async (dateStr) => {
+  if (!confirm(`Tandai ${dateStr} sebagai hari libur?`)) return;
+  const payload = { host_user: 'all', host_name: 'All', schedule_date: dateStr, is_holiday: true,
+    start_time: null, sessions_count: 0, session_minutes: 0, notes: 'Hari libur',
+    created_at: new Date().toISOString() };
+  if (db) {
+    const { error } = await db.from('host_schedules').insert([payload]);
+    if (error) { showToast('Gagal: '+error.message,'error'); return; }
+    await db.from('notifications').insert([{
+      title: '🏖️ Jadwal Libur',
+      message: `Tanggal ${dateStr} ditandai sebagai hari libur. Tidak ada sesi live.`,
+      target_role: 'host', target_user: null,
+      icon: 'fa-umbrella-beach', icon_bg: 'rgba(224,82,82,0.15)', icon_color: 'var(--red)',
+      is_read: false, created_at: new Date().toISOString()
+    }]);
+  }
+  closeModal('klvDayModal');
+  showToast('Hari libur ditandai!', 'success');
+  renderModHostSchedule();
+};
+
+window.deleteHostScheduleInline = async (id, dateStr) => {
+  if (!confirm('Hapus jadwal ini?')) return;
+  if (db) { const { error } = await db.from('host_schedules').delete().eq('id', id);
+    if (error) { showToast('Gagal: '+error.message,'error'); return; } }
+  showToast('Jadwal dihapus', 'success');
+  closeModal('klvDayModal');
+  renderModHostSchedule();
+};
+
+window.openModHostScheduleForm = async (id = null) => { openKeloleLiveDay(new Date().toISOString().slice(0,10)); };
 window.deleteHostSchedule = async (id) => {
   if (!confirm('Hapus jadwal ini?')) return;
   if (db) { const { error } = await db.from('host_schedules').delete().eq('id', id);
