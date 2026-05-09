@@ -727,9 +727,6 @@ function setupSidebar(role) {
       { section: 'LIHAT' },
       { id: 'guest-dashboard', icon: 'fas fa-chart-pie', label: 'Analitik Semua Role' },
       { id: 'guest-tasks', icon: 'fas fa-list-check', label: 'Semua Task' },
-      { section: 'HOST LIVE' },
-      { id: 'guest-host-analytics', icon: 'fas fa-video', label: 'Analitik Host Live' },
-      { id: 'guest-host-tasks', icon: 'fas fa-clipboard-list', label: 'Task Host Live' },
     ],
     host: [
       { section: 'UTAMA' },
@@ -761,7 +758,6 @@ function navigateTo(sectionId) {
     'admin-dashboard':'Dashboard Admin','admin-calendar':'Kalender Leads Admin','admin-analytics':'Analitik Admin',
     'admin-table':'Data Customers Admin','b2b-dashboard':'Dashboard B2B','b2b-calendar':'Kalender Leads B2B',
     'b2b-analytics':'Analitik B2B','b2b-table':'Data Customers B2B','guest-dashboard':'Analitik & Overview','guest-tasks':'Semua Task',
-    'guest-host-analytics':'Analitik Host Live','guest-host-tasks':'Task & Report Host Live',
     'host-dashboard':'Dashboard Host Live','host-calendar':'Kalender Live','host-input':'Input Report Harian','host-target':'Target Bulanan',
   };
   document.getElementById('pageTitle').textContent = titles[sectionId] || sectionId;
@@ -793,8 +789,6 @@ async function renderSection(sectionId) {
     case 'mod-leads': await renderModLeads(); break;
     case 'guest-dashboard': await renderGuestDashboard(); break;
     case 'guest-tasks': await renderGuestTasks(); break;
-    case 'guest-host-analytics': await renderGuestHostAnalytics(); break;
-    case 'guest-host-tasks': await renderGuestHostTasks(); break;
     case 'host-dashboard': await renderHostDashboard(); break;
     case 'host-calendar': await renderHostCalendar(); break;
     case 'host-input': await renderHostInput(); break;
@@ -1204,19 +1198,137 @@ async function renderGuestDashboard() {
   await renderGuestAnalyticsView('all');
 }
 async function renderGuestAnalyticsView(roleView) {
-  const [adminLeads, b2bLeads, ads] = await Promise.all([getLeads('admin'), getLeads('b2b'), getAds()]);
+  const [adminLeads, b2bLeads, ads, ninaReports, sekarReports] = await Promise.all([
+    getLeads('admin'), getLeads('b2b'), getAds(),
+    getHostReports('nina'), getHostReports('sekar')
+  ]);
   const allLeads = [...adminLeads, ...b2bLeads];
+  const allHostReports = [...ninaReports, ...sekarReports];
   Object.values(chartsMap).forEach(c => { try { c.destroy(); } catch(e){} }); chartsMap = {};
-  const roleTabs = `<div class="filter-tabs" style="margin-bottom:0;"><button class="filter-tab ${roleView==='all'?'active':''}" onclick="renderGuestAnalyticsView('all')">Semua Role</button><button class="filter-tab ${roleView==='admin'?'active':''}" onclick="renderGuestAnalyticsView('admin')">Admin</button><button class="filter-tab ${roleView==='b2b'?'active':''}" onclick="renderGuestAnalyticsView('b2b')">Sales B2B</button></div>`;
+  const roleTabs = `<div class="filter-tabs" style="margin-bottom:0;flex-wrap:wrap;">
+    <button class="filter-tab ${roleView==='all'?'active':''}" onclick="renderGuestAnalyticsView('all')"><i class="fas fa-layer-group" style="font-size:0.7rem;"></i> Semua Role</button>
+    <button class="filter-tab ${roleView==='admin'?'active':''}" onclick="renderGuestAnalyticsView('admin')"><i class="fas fa-user-tie" style="font-size:0.7rem;"></i> Admin</button>
+    <button class="filter-tab ${roleView==='b2b'?'active':''}" onclick="renderGuestAnalyticsView('b2b')"><i class="fas fa-handshake" style="font-size:0.7rem;"></i> Sales B2B</button>
+    <button class="filter-tab ${roleView==='host'?'active':''}" onclick="renderGuestAnalyticsView('host')" style="${roleView==='host'?'':''}"><i class="fas fa-video" style="font-size:0.7rem;color:#FF6B9D;"></i> Host Live</button>
+  </div>`;
   const header = `<div style="text-align:center;margin-bottom:24px;"><div style="font-family:var(--font-display);font-size:2rem;font-weight:300;letter-spacing:0.1em;"><span class="gradient-text">DHP Creative</span></div><div style="font-size:0.8rem;color:var(--light-gray);margin-top:4px;font-family:var(--font-ui);letter-spacing:0.2em;text-transform:uppercase;">Analitik & Overview – Guest View</div></div>`;
+
   if (roleView === 'all') {
     const cats = countByCategory(allLeads);
     const aM = Array(12).fill(0); const bM = Array(12).fill(0);
     adminLeads.forEach(l=>aM[new Date(l.lead_date).getMonth()]++); b2bLeads.forEach(l=>bM[new Date(l.lead_date).getMonth()]++);
-    document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${header}<div class="card" style="margin-bottom:20px;"><div class="card-header"><div><div class="card-title">Analitik Guest</div><div class="card-subtitle">Pilih tampilan analitik</div></div>${roleTabs}</div></div><div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:24px;"><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${allLeads.length}</div><div class="stat-label">Total Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-user-tie"></i></div><div class="stat-value">${adminLeads.length}</div><div class="stat-label">Admin Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--blue)">${b2bLeads.length}</div><div class="stat-label">B2B Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-check-circle"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Total Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-fire"></i></div><div class="stat-value" style="color:var(--red)">${cats.hot}</div><div class="stat-label">Hot Leads</div></div></div><div class="grid-2" style="gap:20px;margin-bottom:20px;"><div class="card"><div class="card-header"><div class="card-title">Trend Leads Bulanan</div></div><div class="chart-wrap" style="height:240px;"><canvas id="guestTrendChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Distribusi Kategori</div></div><div class="chart-wrap" style="height:240px;"><canvas id="guestCatChart"></canvas></div></div></div><div class="card"><div class="card-header"><div class="card-title">Admin vs B2B Performance</div></div><div class="chart-wrap" style="height:200px;"><canvas id="guestCompChart"></canvas></div></div></div>`;
+    const approvedHost = allHostReports.filter(r=>r.status==='approved');
+    const totalHostGMV = approvedHost.reduce((s,r)=>s+(+r.total_gmv||0),0);
+    const ninaGMV = ninaReports.filter(r=>r.status==='approved').reduce((s,r)=>s+(+r.total_gmv||0),0);
+    const sekarGMV = sekarReports.filter(r=>r.status==='approved').reduce((s,r)=>s+(+r.total_gmv||0),0);
+    document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${header}
+      <div class="card" style="margin-bottom:20px;"><div class="card-header"><div><div class="card-title">Analitik Guest</div><div class="card-subtitle">Pilih tampilan analitik</div></div>${roleTabs}</div></div>
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px;">
+        <div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${allLeads.length}</div><div class="stat-label">Total Leads</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-user-tie"></i></div><div class="stat-value">${adminLeads.length}</div><div class="stat-label">Admin Leads</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--blue)">${b2bLeads.length}</div><div class="stat-label">B2B Leads</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-check-circle"></i></div><div class="stat-value" style="color:var(--green)">${cats.closing}</div><div class="stat-label">Total Closing</div></div>
+        <div class="stat-card" style="border-color:rgba(255,107,157,0.25);"><div class="stat-icon" style="background:rgba(255,107,157,0.15);color:#FF6B9D;"><i class="fas fa-video"></i></div><div class="stat-value" style="color:#FF6B9D;">${fmtIDRShort(totalHostGMV)}</div><div class="stat-label">GMV Host Live</div></div>
+      </div>
+      <div class="grid-2" style="gap:20px;margin-bottom:20px;">
+        <div class="card"><div class="card-header"><div class="card-title">Trend Leads Bulanan</div></div><div class="chart-wrap" style="height:240px;"><canvas id="guestTrendChart"></canvas></div></div>
+        <div class="card"><div class="card-header"><div class="card-title">Distribusi Kategori</div></div><div class="chart-wrap" style="height:240px;"><canvas id="guestCatChart"></canvas></div></div>
+      </div>
+      <div class="grid-2" style="gap:20px;">
+        <div class="card"><div class="card-header"><div class="card-title">Admin vs B2B Performance</div></div><div class="chart-wrap" style="height:200px;"><canvas id="guestCompChart"></canvas></div></div>
+        <div class="card" style="border-color:rgba(255,107,157,0.2);"><div class="card-header"><div class="card-title" style="color:#FF6B9D;"><i class="fas fa-video"></i> GMV Host Live</div></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div style="text-align:center;padding:14px;background:rgba(255,107,157,0.06);border:1px solid rgba(255,107,157,0.15);border-radius:10px;">
+              <div style="font-family:var(--font-display);font-size:1.5rem;color:#FF6B9D;">${fmtIDRShort(ninaGMV)}</div>
+              <div style="font-size:0.72rem;color:var(--light-gray);margin-top:4px;">Nina</div>
+              <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;margin-top:8px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,(ninaGMV/HOST_USERS.nina.target)*100)}%;background:linear-gradient(90deg,#FF6B9D,var(--gold));border-radius:3px;"></div></div>
+              <div style="font-size:0.68rem;color:var(--light-gray);margin-top:4px;">${Math.min(100,(ninaGMV/HOST_USERS.nina.target)*100).toFixed(1)}% dari target</div>
+            </div>
+            <div style="text-align:center;padding:14px;background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.15);border-radius:10px;">
+              <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--gold);">${fmtIDRShort(sekarGMV)}</div>
+              <div style="font-size:0.72rem;color:var(--light-gray);margin-top:4px;">Sekar</div>
+              <div style="height:6px;background:rgba(255,255,255,0.05);border-radius:3px;margin-top:8px;overflow:hidden;"><div style="height:100%;width:${Math.min(100,(sekarGMV/HOST_USERS.sekar.target)*100)}%;background:linear-gradient(90deg,var(--gold),#FF6B9D);border-radius:3px;"></div></div>
+              <div style="font-size:0.68rem;color:var(--light-gray);margin-top:4px;">${Math.min(100,(sekarGMV/HOST_USERS.sekar.target)*100).toFixed(1)}% dari target</div>
+            </div>
+          </div>
+          <div class="chart-wrap" style="height:130px;"><canvas id="guestHostGMVChart"></canvas></div>
+        </div>
+      </div>
+    </div>`;
     const tCtx = document.getElementById('guestTrendChart'); if (tCtx) chartsMap.guestTrend = new Chart(tCtx, { type: 'line', data: { labels: MONTH_SHORT, datasets: [{ label: 'Total Leads', data: aM.map((v,i)=>v+bM[i]), borderColor: '#C9A84C', backgroundColor: 'rgba(201,168,76,0.1)', tension: 0.4, fill: true }] }, options: chartOptions() });
     const cCtx = document.getElementById('guestCatChart'); if (cCtx) chartsMap.guestCat = new Chart(cCtx, { type: 'doughnut', data: { labels: ['Cold','Warm','Hot','Closing'], datasets: [{ data: [cats.cold,cats.warm,cats.hot,cats.closing], backgroundColor: ['rgba(76,140,224,0.8)','rgba(224,139,76,0.8)','rgba(224,82,82,0.8)','rgba(76,175,125,0.8)'], borderColor: 'rgba(17,17,17,0.5)', borderWidth: 2 }] }, options: { ...chartOptions(), plugins: { legend: { display: true, position: 'right', labels: { color: '#888', font: { size: 11 } } } } } });
     const compCtx = document.getElementById('guestCompChart'); if (compCtx) chartsMap.guestComp = new Chart(compCtx, { type: 'bar', data: { labels: MONTH_SHORT, datasets: [{ label: 'Admin', data: aM, backgroundColor: 'rgba(201,168,76,0.7)', borderRadius: 4 },{ label: 'B2B', data: bM, backgroundColor: 'rgba(76,140,224,0.7)', borderRadius: 4 }] }, options: { ...chartOptions(), plugins: { ...chartOptions().plugins, legend: { display: true, labels: { color: '#888', font: { size: 11 } } } } } });
+    // Host GMV chart
+    const hostGMVCtx = document.getElementById('guestHostGMVChart');
+    if (hostGMVCtx) {
+      const ninaM = Array(12).fill(0); const sekarM = Array(12).fill(0);
+      ninaReports.filter(r=>r.status==='approved').forEach(r=>{ const m=new Date(r.report_date).getMonth(); ninaM[m]+=(+r.total_gmv||0); });
+      sekarReports.filter(r=>r.status==='approved').forEach(r=>{ const m=new Date(r.report_date).getMonth(); sekarM[m]+=(+r.total_gmv||0); });
+      chartsMap.guestHostGMV = new Chart(hostGMVCtx, { type: 'bar', data: { labels: MONTH_SHORT, datasets: [{ label: 'Nina', data: ninaM, backgroundColor: 'rgba(255,107,157,0.7)', borderRadius: 4 },{ label: 'Sekar', data: sekarM, backgroundColor: 'rgba(201,168,76,0.7)', borderRadius: 4 }] }, options: { ...chartOptions(), plugins: { ...chartOptions().plugins, legend: { display: true, labels: { color: '#888', font: { size: 10 } } } } } });
+    }
+
+  } else if (roleView === 'host') {
+    // HOST LIVE ANALYTICS VIEW
+    const ninaApproved = ninaReports.filter(r=>r.status==='approved');
+    const sekarApproved = sekarReports.filter(r=>r.status==='approved');
+    const ninaGMV = ninaApproved.reduce((s,r)=>s+(+r.total_gmv||0),0);
+    const sekarGMV = sekarApproved.reduce((s,r)=>s+(+r.total_gmv||0),0);
+    const ninaMin = ninaApproved.reduce((s,r)=>s+(+r.total_minutes||0),0);
+    const sekarMin = sekarApproved.reduce((s,r)=>s+(+r.total_minutes||0),0);
+    const ninaPc = ninaApproved.reduce((s,r)=>s+(+r.total_pieces||0),0);
+    const sekarPc = sekarApproved.reduce((s,r)=>s+(+r.total_pieces||0),0);
+    const ninaPct = Math.min(100,(ninaGMV/HOST_USERS.nina.target)*100);
+    const sekarPct = Math.min(100,(sekarGMV/HOST_USERS.sekar.target)*100);
+    document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${header}
+      <div class="card" style="margin-bottom:20px;"><div class="card-header"><div><div class="card-title">Analitik Host Live</div><div class="card-subtitle">Overview performa semua host</div></div>${roleTabs}</div></div>
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:24px;">
+        <div class="stat-card" style="border-color:rgba(255,107,157,0.2);"><div class="stat-icon" style="background:rgba(255,107,157,0.12);color:#FF6B9D;"><i class="fas fa-video"></i></div><div class="stat-value" style="color:#FF6B9D;">${fmtIDRShort(ninaGMV+sekarGMV)}</div><div class="stat-label">Total GMV</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-clock"></i></div><div class="stat-value" style="color:var(--gold);">${minutesToHM(ninaMin+sekarMin)}</div><div class="stat-label">Total Jam Live</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-box"></i></div><div class="stat-value" style="color:var(--blue);">${ninaPc+sekarPc}</div><div class="stat-label">Total Piece</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-calendar-check"></i></div><div class="stat-value" style="color:var(--green);">${ninaApproved.length+sekarApproved.length}</div><div class="stat-label">Hari Live ACC</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-orange"><i class="fas fa-hourglass-half"></i></div><div class="stat-value" style="color:var(--orange);">${allHostReports.filter(r=>r.status==='pending').length}</div><div class="stat-label">Report Pending</div></div>
+      </div>
+      <div class="grid-2" style="gap:20px;margin-bottom:20px;">
+        <div class="host-card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#FF6B9D,var(--gold));display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.3rem;color:white;font-weight:600;">N</div>
+            <div><div style="font-family:var(--font-display);font-size:1.3rem;font-weight:600;">Nina</div><div style="font-size:0.75rem;color:var(--light-gray);">Target ${fmtIDRShort(HOST_USERS.nina.target)}</div></div>
+          </div>
+          <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:600;background:linear-gradient(135deg,var(--gold),#FF6B9D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">${ninaPct.toFixed(1)}%</div>
+          <div style="font-size:0.85rem;margin-top:4px;">${fmtIDR(ninaGMV)}</div>
+          <div class="target-progress-bar" style="margin-top:10px;"><div class="target-progress-fill" style="width:${ninaPct}%"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;">
+            <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1rem;color:var(--gold);">${minutesToHM(ninaMin)}</div><div style="font-size:0.6rem;color:var(--light-gray);">Jam</div></div>
+            <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1rem;color:var(--blue);">${ninaPc}</div><div style="font-size:0.6rem;color:var(--light-gray);">Piece</div></div>
+            <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1rem;color:var(--purple);">${ninaApproved.length}</div><div style="font-size:0.6rem;color:var(--light-gray);">Hari</div></div>
+          </div>
+        </div>
+        <div class="host-card">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--gold),#FF6B9D);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.3rem;color:white;font-weight:600;">S</div>
+            <div><div style="font-family:var(--font-display);font-size:1.3rem;font-weight:600;">Sekar</div><div style="font-size:0.75rem;color:var(--light-gray);">Target ${fmtIDRShort(HOST_USERS.sekar.target)}</div></div>
+          </div>
+          <div style="font-family:var(--font-display);font-size:2.2rem;font-weight:600;background:linear-gradient(135deg,var(--gold),#FF6B9D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">${sekarPct.toFixed(1)}%</div>
+          <div style="font-size:0.85rem;margin-top:4px;">${fmtIDR(sekarGMV)}</div>
+          <div class="target-progress-bar" style="margin-top:10px;"><div class="target-progress-fill" style="width:${sekarPct}%"></div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;">
+            <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1rem;color:var(--gold);">${minutesToHM(sekarMin)}</div><div style="font-size:0.6rem;color:var(--light-gray);">Jam</div></div>
+            <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1rem;color:var(--blue);">${sekarPc}</div><div style="font-size:0.6rem;color:var(--light-gray);">Piece</div></div>
+            <div style="text-align:center;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1rem;color:var(--purple);">${sekarApproved.length}</div><div style="font-size:0.6rem;color:var(--light-gray);">Hari</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Perbandingan GMV Bulanan – Nina vs Sekar</div></div>
+        <div class="chart-wrap" style="height:240px;"><canvas id="guestHostCmpChart"></canvas></div>
+      </div>
+    </div>`;
+    const ninaM12=Array(12).fill(0); const sekarM12=Array(12).fill(0);
+    ninaApproved.forEach(r=>{const m=new Date(r.report_date).getMonth();ninaM12[m]+=(+r.total_gmv||0);});
+    sekarApproved.forEach(r=>{const m=new Date(r.report_date).getMonth();sekarM12[m]+=(+r.total_gmv||0);});
+    const hc=document.getElementById('guestHostCmpChart');
+    if(hc) chartsMap.guestHostCmp=new Chart(hc,{type:'line',data:{labels:MONTH_SHORT,datasets:[{label:'Nina',data:ninaM12,borderColor:'#FF6B9D',backgroundColor:'rgba(255,107,157,0.12)',borderWidth:2,pointRadius:4,tension:0.3,fill:true},{label:'Sekar',data:sekarM12,borderColor:'#C9A84C',backgroundColor:'rgba(201,168,76,0.12)',borderWidth:2,pointRadius:4,tension:0.3,fill:true}]},options:{...chartOptions(),plugins:{legend:{display:true,labels:{color:'#888',font:{size:11}}}}}});
+
   } else {
     const leads = roleView === 'admin' ? adminLeads : b2bLeads;
     const cats = countByCategory(leads); const roleColor = roleView === 'admin' ? 'var(--gold)' : 'var(--blue)'; const roleLabel = roleView === 'admin' ? 'Admin' : 'Sales B2B';
@@ -1228,181 +1340,82 @@ async function renderGuestAnalyticsView(roleView) {
   }
 }
 async function renderGuestTasks() {
-  const [adminLeads, b2bLeads] = await Promise.all([getLeads('admin'), getLeads('b2b')]);
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Task Admin</div><div class="card-subtitle">${adminLeads.length} entri</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${adminLeads.map((l,i)=>`<tr><td>${i+1}</td><td>${l.name}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="color:var(--light-gray);">${l.lead_date}</td></tr>`).join('')}</tbody></table></div></div><div class="card" style="margin-top:20px;"><div class="card-header"><div><div class="card-title">Task B2B</div><div class="card-subtitle">${b2bLeads.length} entri</div></div></div><div class="table-wrap"><table><thead><tr><th>#</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Tanggal</th></tr></thead><tbody>${b2bLeads.map((l,i)=>`<tr><td>${i+1}</td><td>${l.name}</td><td>${l.city}</td><td><span class="tag tag-${l.category}">${l.category}</span></td><td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td><td style="color:var(--light-gray);">${l.lead_date}</td></tr>`).join('')}</tbody></table></div></div></div>`;
+  await renderGuestTasksView('all');
 }
+async function renderGuestTasksView(roleFilter) {
+  const [adminLeads, b2bLeads, hostReports] = await Promise.all([
+    getLeads('admin'), getLeads('b2b'), getHostReports(null)
+  ]);
+  const approvedReports = hostReports.filter(r => r.status === 'approved');
+  const allLeads = [...adminLeads, ...b2bLeads];
+  const totalEntries = allLeads.length + approvedReports.length;
 
-/* ----------- GUEST: ANALITIK HOST LIVE ----------- */
-let currentGuestHostMonth = new Date().getMonth();
-let currentGuestHostYear  = new Date().getFullYear();
+  const filterTabs = `<div class="filter-tabs" id="guestTaskFilterTabs" style="flex-wrap:wrap;">
+    <button class="filter-tab ${roleFilter==='all'?'active':''}" onclick="renderGuestTasksView('all')"><i class="fas fa-layer-group" style="font-size:0.7rem;"></i> Semua</button>
+    <button class="filter-tab ${roleFilter==='admin'?'active':''}" onclick="renderGuestTasksView('admin')"><i class="fas fa-user-tie" style="font-size:0.7rem;"></i> Admin</button>
+    <button class="filter-tab ${roleFilter==='b2b'?'active':''}" onclick="renderGuestTasksView('b2b')"><i class="fas fa-handshake" style="font-size:0.7rem;"></i> B2B</button>
+    <button class="filter-tab ${roleFilter==='host'?'active':''}" onclick="renderGuestTasksView('host')" style=""><i class="fas fa-video" style="font-size:0.7rem;color:#FF6B9D;"></i> Host Live</button>
+  </div>`;
 
-async function renderGuestHostAnalytics() {
-  const m = currentGuestHostMonth, y = currentGuestHostYear;
-  const all = await getHostReports(null, m, y);
-  const ninaApproved  = all.filter(r => r.host_user==='nina'  && r.status==='approved');
-  const sekarApproved = all.filter(r => r.host_user==='sekar' && r.status==='approved');
-  const ninaGMV  = ninaApproved.reduce((s,r)=>s+(+r.total_gmv||0),0);
-  const sekarGMV = sekarApproved.reduce((s,r)=>s+(+r.total_gmv||0),0);
-  const ninaPct  = Math.min(100, (ninaGMV/HOST_USERS.nina.target)*100);
-  const sekarPct = Math.min(100, (sekarGMV/HOST_USERS.sekar.target)*100);
-  const ninaMin  = ninaApproved.reduce((s,r)=>s+(+r.total_minutes||0),0);
-  const sekarMin = sekarApproved.reduce((s,r)=>s+(+r.total_minutes||0),0);
-  const ninaPc   = ninaApproved.reduce((s,r)=>s+(+r.total_pieces||0),0);
-  const sekarPc  = sekarApproved.reduce((s,r)=>s+(+r.total_pieces||0),0);
+  let tableHTML = '';
 
-  document.getElementById('pageContent').innerHTML = `
-    <div style="animation:fadeIn 0.4s ease;">
-      <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;">
-        <button class="btn btn-secondary btn-sm btn-icon" onclick="guestHostAnPrev()"><i class="fas fa-chevron-left"></i></button>
-        <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:600;flex:1;text-align:center;">${MONTHS[m]} ${y}</div>
-        <button class="btn btn-secondary btn-sm btn-icon" onclick="guestHostAnNext()"><i class="fas fa-chevron-right"></i></button>
+  if (roleFilter === 'all' || roleFilter === 'admin' || roleFilter === 'b2b') {
+    const leadsToShow = roleFilter === 'admin' ? adminLeads : roleFilter === 'b2b' ? b2bLeads : allLeads;
+    const tableTitle = roleFilter === 'admin' ? 'Task Admin' : roleFilter === 'b2b' ? 'Task B2B' : 'Task Admin & B2B';
+    tableHTML += `<div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div><div class="card-title">${tableTitle}</div><div class="card-subtitle">${leadsToShow.length} entri</div></div>
       </div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Role</th><th>Nama</th><th>Wilayah</th><th>Kategori</th><th>Status Follow-up</th><th>Tanggal</th></tr></thead><tbody>
+      ${leadsToShow.length===0 ? `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--light-gray);">Belum ada data</td></tr>` :
+      leadsToShow.map((l,i)=>`<tr>
+        <td style="color:var(--light-gray);">${i+1}</td>
+        <td><span class="sidebar-role-badge ${l.role==='admin'?'badge-admin':'badge-b2b'}" style="display:inline;font-size:0.62rem;">${l.role}</span></td>
+        <td><strong>${l.name}</strong></td>
+        <td>${l.city}</td>
+        <td><span class="tag tag-${l.category}">${l.category}</span></td>
+        <td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td>
+        <td style="color:var(--light-gray);white-space:nowrap;">${l.lead_date}</td>
+      </tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+  }
 
-      <div class="grid-2" style="gap:20px;margin-bottom:20px;">
-        ${[['nina','Nina',ninaGMV,ninaPct,ninaMin,ninaPc,ninaApproved.length],['sekar','Sekar',sekarGMV,sekarPct,sekarMin,sekarPc,sekarApproved.length]].map(([hu,nm,gmv,pct,min,pc,cnt])=>`
-        <div class="host-card">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-            <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#FF6B9D,var(--gold));display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.5rem;color:white;font-weight:600;">${nm[0]}</div>
-            <div>
-              <div style="font-family:var(--font-display);font-size:1.4rem;font-weight:600;">${nm}</div>
-              <div style="font-size:0.78rem;color:var(--light-gray);">Target ${fmtIDRShort(HOST_USERS[hu].target)} / bulan</div>
-            </div>
-          </div>
-          <div style="font-family:var(--font-display);font-size:2.6rem;font-weight:600;background:linear-gradient(135deg,var(--gold),#FF6B9D);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1;">${pct.toFixed(1)}%</div>
-          <div style="font-size:0.85rem;color:var(--white);margin-top:6px;">${fmtIDR(gmv)}</div>
-          <div class="target-progress-bar" style="margin-top:12px;"><div class="target-progress-fill" style="width:${pct}%"></div></div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;">
-            <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.1rem;color:var(--gold);">${minutesToHM(min)}</div><div style="font-size:0.62rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;">Jam</div></div>
-            <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.1rem;color:var(--blue);">${pc}</div><div style="font-size:0.62rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;">Piece</div></div>
-            <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.1rem;color:var(--purple);">${cnt}</div><div style="font-size:0.62rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;">Hari Live</div></div>
-          </div>
-        </div>`).join('')}
+  if (roleFilter === 'all' || roleFilter === 'host') {
+    const tableTitle = roleFilter === 'host' ? 'Task Host Live – Report Harian' : 'Task Host Live';
+    tableHTML += `<div class="card" style="${roleFilter==='all'?'margin-top:20px;':''}border-color:rgba(255,107,157,0.2);">
+      <div class="card-header">
+        <div><div class="card-title" style="color:#FF6B9D;"><i class="fas fa-video"></i> ${tableTitle}</div><div class="card-subtitle">${approvedReports.length} report ACC dari ${hostReports.length} total</div></div>
       </div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Host</th><th>Tanggal</th><th>Sesi</th><th>Jam Live</th><th>GMV</th><th>Piece</th><th>Status</th></tr></thead><tbody>
+      ${hostReports.length===0 ? `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--light-gray);">Belum ada data report</td></tr>` :
+      hostReports.map((r,i)=>`<tr>
+        <td style="color:var(--light-gray);">${i+1}</td>
+        <td><span class="host-name-pill"><i class="fas fa-video" style="font-size:0.6rem;"></i> ${r.host_user==='nina'?'Nina':'Sekar'}</span></td>
+        <td style="white-space:nowrap;color:var(--light-gray);">${r.report_date}</td>
+        <td style="text-align:center;">${r.sessions||0}</td>
+        <td style="color:var(--gold);font-family:var(--font-ui);font-size:0.82rem;">${minutesToHM(r.total_minutes||0)}</td>
+        <td style="color:#FF6B9D;font-family:var(--font-ui);font-size:0.82rem;">${fmtIDRShort(r.total_gmv||0)}</td>
+        <td style="text-align:center;">${r.total_pieces||0}</td>
+        <td><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='rejected'?'status-rejected':'status-pending'}">${r.status==='approved'?'✓ ACC':r.status==='rejected'?'✗ Tolak':'⏳ Pending'}</span></td>
+      </tr>`).join('')}
+      </tbody></table></div>
+    </div>`;
+  }
 
-      <div class="card">
-        <div class="card-header"><div><div class="card-title">Perbandingan Bulanan – Nina vs Sekar</div><div class="card-subtitle">12 bulan terakhir (GMV ter-ACC)</div></div></div>
-        <div class="chart-wrap" style="height:240px;"><canvas id="guestHostCmpChart"></canvas></div>
+  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div><div class="card-title">Semua Task</div><div class="card-subtitle">${totalEntries} total entri</div></div>
+        ${filterTabs}
       </div>
     </div>
-  `;
-
-  const labels=[]; const ninaArr=[]; const sekarArr=[];
-  for (let i=11;i>=0;i--) {
-    const d=new Date(); d.setMonth(d.getMonth()-i);
-    const mm=d.getMonth(), yy=d.getFullYear();
-    labels.push(`${MONTH_SHORT[mm]} ${String(yy).slice(2)}`);
-    const r=await getHostReports(null,mm,yy);
-    ninaArr.push(r.filter(x=>x.host_user==='nina'&&x.status==='approved').reduce((s,x)=>s+(+x.total_gmv||0),0));
-    sekarArr.push(r.filter(x=>x.host_user==='sekar'&&x.status==='approved').reduce((s,x)=>s+(+x.total_gmv||0),0));
-  }
-  const cmp=document.getElementById('guestHostCmpChart');
-  if (cmp) chartsMap.guestHostCmp=new Chart(cmp,{
-    type:'line', data:{labels, datasets:[
-      {label:'Nina',data:ninaArr,borderColor:'#FF6B9D',backgroundColor:'rgba(255,107,157,0.15)',borderWidth:2,pointRadius:4,tension:0.3,fill:true},
-      {label:'Sekar',data:sekarArr,borderColor:'#C9A84C',backgroundColor:'rgba(201,168,76,0.15)',borderWidth:2,pointRadius:4,tension:0.3,fill:true}
-    ]},
-    options:{...chartOptions(),plugins:{legend:{display:true,labels:{color:'#888',font:{size:11}}}}}
-  });
+    ${tableHTML}
+  </div>`;
 }
-window.guestHostAnPrev = async () => { currentGuestHostMonth--; if(currentGuestHostMonth<0){currentGuestHostMonth=11;currentGuestHostYear--;} await renderGuestHostAnalytics(); };
-window.guestHostAnNext = async () => { currentGuestHostMonth++; if(currentGuestHostMonth>11){currentGuestHostMonth=0;currentGuestHostYear++;} await renderGuestHostAnalytics(); };
 
-/* ----------- GUEST: TASK HOST LIVE (read-only) ----------- */
-async function renderGuestHostTasks() {
-  const allReports = await getHostReports();
-  const allSchedules = await getHostSchedules();
-
-  // Group reports by host
-  const ninaReports  = allReports.filter(r => r.host_user === 'nina').slice(0, 50);
-  const sekarReports = allReports.filter(r => r.host_user === 'sekar').slice(0, 50);
-
-  // Build schedules map
-  const schedMap = {};
-  allSchedules.forEach(s => { schedMap[s.host_user+'_'+s.schedule_date] = s; });
-
-  function statusBadge(s) {
-    if (s==='approved') return `<span class="status-pill status-approved">✓ ACC</span>`;
-    if (s==='pending')  return `<span class="status-pill status-pending">⏳ Pending</span>`;
-    return `<span class="status-pill status-rejected">✗ Ditolak</span>`;
-  }
-
-  function buildHostTable(reports, hostName) {
-    if (reports.length === 0) return `<div class="text-muted text-sm" style="padding:14px 0;">Belum ada report.</div>`;
-    return `<div style="overflow-x:auto;"><table>
-      <thead><tr><th>Tanggal</th><th>Sesi</th><th>Jam Total</th><th>GMV</th><th>Piece</th><th>Jadwal</th><th>Status</th></tr></thead>
-      <tbody>${reports.map(r => {
-        const sched = schedMap[r.host_user+'_'+r.report_date];
-        const schedInfo = sched && !sched.is_holiday
-          ? `<span style="font-size:0.75rem;color:var(--light-gray);">${sched.start_time||''} · ${sched.sessions_count||0}s × ${sched.session_minutes||0}m</span>`
-          : (sched && sched.is_holiday ? `<span style="font-size:0.75rem;color:var(--red);">Hari Libur</span>` : `<span style="font-size:0.75rem;color:var(--gray2);">-</span>`);
-        return `<tr>
-          <td>${r.report_date}</td>
-          <td>${r.sessions||0}</td>
-          <td>${minutesToHM(r.total_minutes)}</td>
-          <td><strong>${fmtIDR(r.total_gmv)}</strong></td>
-          <td>${r.total_pieces||0}</td>
-          <td>${schedInfo}</td>
-          <td>${statusBadge(r.status)}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div>`;
-  }
-
-  // Upcoming schedules (future + today)
-  const todayStr = new Date().toISOString().slice(0,10);
-  const upcomingSchedules = allSchedules.filter(s => s.schedule_date >= todayStr).sort((a,b)=>a.schedule_date.localeCompare(b.schedule_date)).slice(0,10);
-
-  document.getElementById('pageContent').innerHTML = `
-    <div style="animation:fadeIn 0.4s ease;">
-      <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:rgba(255,107,157,0.06);border:1px solid rgba(255,107,157,0.2);border-radius:10px;margin-bottom:20px;">
-        <i class="fas fa-eye" style="color:#FF6B9D;"></i>
-        <span style="font-size:0.82rem;color:var(--light-gray);">Mode <strong style="color:var(--white);">View Only</strong> – Guest hanya bisa melihat data, tidak dapat melakukan perubahan.</span>
-      </div>
-
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-header">
-          <div>
-            <div class="card-title"><i class="fas fa-calendar-check" style="color:var(--gold);"></i> Jadwal Live Mendatang</div>
-            <div class="card-subtitle">${upcomingSchedules.length} jadwal ke depan</div>
-          </div>
-        </div>
-        ${upcomingSchedules.length === 0 ? `<div class="text-muted text-sm" style="padding:14px 0;">Belum ada jadwal mendatang.</div>` :
-        `<div style="overflow-x:auto;"><table>
-          <thead><tr><th>Tanggal</th><th>Host</th><th>Tipe</th><th>Jam Mulai</th><th>Sesi</th><th>Durasi/Sesi</th><th>Catatan</th></tr></thead>
-          <tbody>${upcomingSchedules.map(s=>`<tr>
-            <td>${s.schedule_date}${s.schedule_date===todayStr?` <span class="live-indicator" style="font-size:0.6rem;">HARI INI</span>`:''}</td>
-            <td><span class="host-name-pill">${HOST_USERS[s.host_user]?.name||s.host_user}</span></td>
-            <td>${s.is_holiday?`<span style="color:var(--red);">🏖️ Libur</span>`:`<span style="color:var(--green);">🎬 Live</span>`}</td>
-            <td>${s.is_holiday?'-':s.start_time||'-'}</td>
-            <td>${s.is_holiday?'-':s.sessions_count||0}</td>
-            <td>${s.is_holiday?'-':(s.session_minutes||0)+' menit'}</td>
-            <td style="font-size:0.78rem;color:var(--light-gray);">${s.notes||'-'}</td>
-          </tr>`).join('')}</tbody>
-        </table></div>`}
-      </div>
-
-      <div class="card" style="margin-bottom:20px;">
-        <div class="card-header">
-          <div>
-            <div class="card-title"><i class="fas fa-video" style="color:#FF6B9D;"></i> Report Harian – Nina</div>
-            <div class="card-subtitle">${ninaReports.length} report</div>
-          </div>
-        </div>
-        ${buildHostTable(ninaReports, 'Nina')}
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title"><i class="fas fa-video" style="color:var(--gold);"></i> Report Harian – Sekar</div>
-            <div class="card-subtitle">${sekarReports.length} report</div>
-          </div>
-        </div>
-        ${buildHostTable(sekarReports, 'Sekar')}
-      </div>
-    </div>
-  `;
-}
+window.renderGuestAnalyticsView = renderGuestAnalyticsView;
+window.renderGuestTasksView = renderGuestTasksView;
 
 function getRelativeTime(dateStr) {
   const now = new Date(); const then = new Date(dateStr); const diffMs = now - then; const diffSec = Math.floor(diffMs / 1000);
