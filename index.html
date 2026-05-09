@@ -1203,9 +1203,114 @@ window.exportPDF = async (role) => {
 };
 
 async function renderModDashboard() {
-  const [adminLeads, b2bLeads, ads] = await Promise.all([getLeads('admin'), getLeads('b2b'), getAds()]);
-  const adminCats = countByCategory(adminLeads); const b2bCats = countByCategory(b2bLeads);
-  document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">${buildLoginGreetingBanner("Moderator","moderator")}<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;"><div style="width:4px;height:32px;background:linear-gradient(180deg,var(--purple),rgba(155,89,182,0.2));border-radius:2px;"></div><div><div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--purple);">Moderator</span></div><div style="font-size:0.8rem;color:var(--light-gray);">Overview Semua Role</div></div></div><div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));"><div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${adminLeads.length+b2bLeads.length}</div><div class="stat-label">Total Semua Leads</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-user-tie"></i></div><div class="stat-value">${adminLeads.length}</div><div class="stat-label">Leads Admin</div></div><div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--blue)">${b2bLeads.length}</div><div class="stat-label">Leads B2B</div></div><div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-bullseye"></i></div><div class="stat-value" style="color:var(--green)">${adminCats.closing+b2bCats.closing}</div><div class="stat-label">Total Closing</div></div><div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-bullhorn"></i></div><div class="stat-value">${ads.length}</div><div class="stat-label">Total Iklan</div></div></div><div class="grid-2" style="gap:20px;margin:20px 0;"><div class="card"><div class="card-header"><div class="card-title">Admin vs B2B Leads</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modCompareChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Distribusi Kategori – Semua Role</div></div><div class="chart-wrap" style="height:240px;"><canvas id="modAllCatChart"></canvas></div></div></div><div class="grid-2" style="gap:20px;"><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--gold);">Admin</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(adminCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div><div class="card"><div class="card-header"><div><div class="card-title" style="color:var(--blue);">Sales B2B</div></div></div><div class="flex gap-8 flex-wrap">${Object.entries(b2bCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}</div></div></div></div>`;
+  const [adminLeads, b2bLeads, ads, hostReports] = await Promise.all([
+    getLeads('admin'), getLeads('b2b'), getAds(), getHostReports()
+  ]);
+  const adminCats = countByCategory(adminLeads);
+  const b2bCats = countByCategory(b2bLeads);
+
+  // Filter host reports bulan ini & yang sudah di-ACC
+  const now = new Date();
+  const curM = now.getMonth(), curY = now.getFullYear();
+  const isCurMonth = (d) => { const x = new Date(d); return x.getMonth() === curM && x.getFullYear() === curY; };
+  const ninaApproved  = hostReports.filter(r => r.host_user === 'nina'  && r.status === 'approved' && isCurMonth(r.report_date));
+  const sekarApproved = hostReports.filter(r => r.host_user === 'sekar' && r.status === 'approved' && isCurMonth(r.report_date));
+  const ninaGMV  = ninaApproved.reduce((s,r)=>s+(+r.total_gmv||0), 0);
+  const sekarGMV = sekarApproved.reduce((s,r)=>s+(+r.total_gmv||0), 0);
+  const ninaMin  = ninaApproved.reduce((s,r)=>s+(+r.total_minutes||0), 0);
+  const sekarMin = sekarApproved.reduce((s,r)=>s+(+r.total_minutes||0), 0);
+  const ninaPc   = ninaApproved.reduce((s,r)=>s+(+r.total_pieces||0), 0);
+  const sekarPc  = sekarApproved.reduce((s,r)=>s+(+r.total_pieces||0), 0);
+  const totalHostGMV    = ninaGMV + sekarGMV;
+  const totalHostMin    = ninaMin + sekarMin;
+  const totalHostPieces = ninaPc + sekarPc;
+  const ninaPct  = HOST_USERS.nina  ? Math.min(100, (ninaGMV  / HOST_USERS.nina.target)  * 100) : 0;
+  const sekarPct = HOST_USERS.sekar ? Math.min(100, (sekarGMV / HOST_USERS.sekar.target) * 100) : 0;
+  const pendingHostReports = hostReports.filter(r => r.status === 'pending').length;
+
+  document.getElementById('pageContent').innerHTML = `
+    <div style="animation:fadeIn 0.4s ease;">
+      ${buildLoginGreetingBanner("Moderator","moderator")}
+
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+        <div style="width:4px;height:32px;background:linear-gradient(180deg,var(--purple),rgba(155,89,182,0.2));border-radius:2px;"></div>
+        <div>
+          <div style="font-family:var(--font-display);font-size:1.6rem;font-weight:400;">Dashboard <span style="color:var(--purple);">Moderator</span></div>
+          <div style="font-size:0.8rem;color:var(--light-gray);">Overview Semua Role · Admin, Sales B2B, &amp; Host Live</div>
+        </div>
+      </div>
+
+      <!-- STATS GLOBAL -->
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:20px;">
+        <div class="stat-card"><div class="stat-icon stat-icon-purple"><i class="fas fa-users"></i></div><div class="stat-value gradient-text">${adminLeads.length+b2bLeads.length}</div><div class="stat-label">Total Semua Leads</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-user-tie"></i></div><div class="stat-value">${adminLeads.length}</div><div class="stat-label">Leads Admin</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-handshake"></i></div><div class="stat-value" style="color:var(--blue)">${b2bLeads.length}</div><div class="stat-label">Leads B2B</div></div>
+        <div class="stat-card" style="border-color:rgba(255,107,157,0.25);"><div class="stat-icon" style="background:rgba(255,107,157,0.15);color:#FF6B9D;"><i class="fas fa-video"></i></div><div class="stat-value" style="color:#FF6B9D;">${fmtIDRShort(totalHostGMV)}</div><div class="stat-label">GMV Host Bulan Ini</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-bullseye"></i></div><div class="stat-value" style="color:var(--green)">${adminCats.closing+b2bCats.closing}</div><div class="stat-label">Total Closing</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-bullhorn"></i></div><div class="stat-value">${ads.length}</div><div class="stat-label">Total Iklan</div></div>
+        ${pendingHostReports > 0 ? `<div class="stat-card" style="border-color:rgba(224,139,76,0.3);background:rgba(224,139,76,0.04);cursor:pointer;" onclick="navigateTo('mod-host-reports')"><div class="stat-icon" style="background:rgba(224,139,76,0.15);color:var(--orange);"><i class="fas fa-clipboard-check"></i></div><div class="stat-value" style="color:var(--orange);">${pendingHostReports}</div><div class="stat-label">Report Menunggu ACC</div></div>` : ''}
+      </div>
+
+      <!-- HOST LIVE OVERVIEW -->
+      <div class="card" style="margin-bottom:20px;border-color:rgba(255,107,157,0.2);">
+        <div class="card-header">
+          <div>
+            <div class="card-title" style="color:#FF6B9D;"><i class="fas fa-video"></i> Overview Host Live – ${MONTHS[curM]} ${curY}</div>
+            <div class="card-subtitle">Performa host (data ACC)</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="navigateTo('mod-host-overview')"><i class="fas fa-arrow-right"></i> Detail</button>
+        </div>
+        <div class="grid-2" style="gap:16px;margin-top:14px;">
+          ${[['nina','Nina',ninaGMV,ninaPct,ninaMin,ninaPc,ninaApproved.length,'#FF6B9D'],['sekar','Sekar',sekarGMV,sekarPct,sekarMin,sekarPc,sekarApproved.length,'#C9A84C']].map(([hu,nm,gmv,pct,min,pc,cnt,clr])=>`
+          <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(201,168,76,0.15);border-radius:12px;padding:14px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+              <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,${clr},var(--gold));display:flex;align-items:center;justify-content:center;color:white;font-family:var(--font-display);font-weight:600;">${nm[0]}</div>
+              <div style="flex:1;">
+                <div style="font-family:var(--font-display);font-size:1.05rem;font-weight:600;">${nm}</div>
+                <div style="font-size:0.7rem;color:var(--light-gray);">Target ${fmtIDRShort(HOST_USERS[hu]?.target||0)}</div>
+              </div>
+              <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:600;color:${clr};">${pct.toFixed(1)}%</div>
+            </div>
+            <div class="target-progress-bar"><div class="target-progress-fill" style="width:${pct}%"></div></div>
+            <div style="font-size:0.78rem;color:var(--white);margin-top:8px;">${fmtIDR(gmv)}</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;">
+              <div style="text-align:center;padding:8px 4px;background:rgba(255,255,255,0.03);border-radius:6px;"><div style="font-family:var(--font-display);font-size:0.95rem;color:var(--gold);">${minutesToHM(min)}</div><div style="font-size:0.58rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.08em;">Jam</div></div>
+              <div style="text-align:center;padding:8px 4px;background:rgba(255,255,255,0.03);border-radius:6px;"><div style="font-family:var(--font-display);font-size:0.95rem;color:var(--blue);">${pc}</div><div style="font-size:0.58rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.08em;">Piece</div></div>
+              <div style="text-align:center;padding:8px 4px;background:rgba(255,255,255,0.03);border-radius:6px;"><div style="font-family:var(--font-display);font-size:0.95rem;color:var(--purple);">${cnt}</div><div style="font-size:0.58rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.08em;">Hari</div></div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>
+
+      <!-- COMPARISON CHARTS -->
+      <div class="grid-2" style="gap:20px;margin-bottom:20px;">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Admin vs B2B Leads</div></div>
+          <div class="chart-wrap" style="height:240px;"><canvas id="modCompareChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Distribusi Kategori – Admin &amp; B2B</div></div>
+          <div class="chart-wrap" style="height:240px;"><canvas id="modAllCatChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ADMIN & B2B BREAKDOWN -->
+      <div class="grid-2" style="gap:20px;">
+        <div class="card">
+          <div class="card-header"><div><div class="card-title" style="color:var(--gold);"><i class="fas fa-user-tie"></i> Admin</div></div></div>
+          <div class="flex gap-8 flex-wrap">
+            ${Object.entries(adminCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div><div class="card-title" style="color:var(--blue);"><i class="fas fa-handshake"></i> Sales B2B</div></div></div>
+          <div class="flex gap-8 flex-wrap">
+            ${Object.entries(b2bCats).map(([k,v])=>`<div style="flex:1;min-width:80px;text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;"><div style="font-family:var(--font-display);font-size:1.5rem;">${v}</div><span class="tag tag-${k}" style="margin-top:4px;">${k}</span></div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
   const aM = Array(12).fill(0); const bM = Array(12).fill(0);
   adminLeads.forEach(l => aM[new Date(l.lead_date).getMonth()]++); b2bLeads.forEach(l => bM[new Date(l.lead_date).getMonth()]++);
   const ccCtx = document.getElementById('modCompareChart'); if (ccCtx) chartsMap.modCompare = new Chart(ccCtx, { type: 'bar', data: { labels: MONTH_SHORT, datasets: [{ label: 'Admin', data: aM, backgroundColor: 'rgba(201,168,76,0.6)', borderColor: 'rgba(201,168,76,1)', borderRadius: 4 }, { label: 'B2B', data: bM, backgroundColor: 'rgba(76,140,224,0.6)', borderColor: 'rgba(76,140,224,1)', borderRadius: 4 }] }, options: { ...chartOptions(), plugins: { ...chartOptions().plugins, legend: { display: true, labels: { color: '#888', font: { size: 11 } } } } } });
@@ -2228,15 +2333,21 @@ async function renderHostDashboard() {
         </div>
         ${reports.length===0 ? `<div class="text-muted text-sm" style="padding:14px 0;">Belum ada report bulan ini.</div>` :
         `<div style="overflow-x:auto;"><table>
-          <thead><tr><th>Tanggal</th><th>Sesi</th><th>Jam Total</th><th>GMV</th><th>Piece</th><th>Status</th></tr></thead>
-          <tbody>${reports.map(r=>`<tr>
-            <td>${r.report_date}</td>
-            <td>${r.sessions||0}</td>
-            <td>${minutesToHM(r.total_minutes)}</td>
-            <td>${fmtIDR(r.total_gmv)}</td>
-            <td>${r.total_pieces||0}</td>
-            <td><span class="status-pill status-${r.status}">${r.status==='approved'?'✓ ACC':r.status==='pending'?'⏳ Pending':'✗ Ditolak'}</span></td>
-          </tr>`).join('')}</tbody></table></div>`}
+          <thead><tr><th>Tanggal</th><th>Sesi 1 (Jam)</th><th>Sesi 2 (Jam)</th><th>Total Jam</th><th>GMV</th><th>Piece</th><th>Status</th></tr></thead>
+          <tbody>${reports.map(r=>{
+            const det = getReportSessionDetails(r);
+            const s1 = det && det.s1_start && det.s1_end ? `${det.s1_start}–${det.s1_end} <span style="color:var(--light-gray);font-size:0.7rem;">(${minutesToHM(det.s1_minutes||0)})</span>` : '<span style="color:var(--light-gray);">–</span>';
+            const s2 = det && det.s2_start && det.s2_end ? `${det.s2_start}–${det.s2_end} <span style="color:var(--light-gray);font-size:0.7rem;">(${minutesToHM(det.s2_minutes||0)})</span>` : '<span style="color:var(--light-gray);">–</span>';
+            return `<tr>
+              <td>${r.report_date}</td>
+              <td style="font-family:var(--font-ui);font-size:0.78rem;">${s1}</td>
+              <td style="font-family:var(--font-ui);font-size:0.78rem;">${s2}</td>
+              <td style="color:var(--gold);font-weight:600;">${minutesToHM(r.total_minutes||0)}</td>
+              <td>${fmtIDR(r.total_gmv)}</td>
+              <td>${r.total_pieces||0}</td>
+              <td><span class="status-pill status-${r.status}">${r.status==='approved'?'✓ ACC':r.status==='pending'?'⏳ Pending':'✗ Ditolak'}</span></td>
+            </tr>`;
+          }).join('')}</tbody></table></div>`}
       </div>
     </div>
   `;
@@ -2406,62 +2517,201 @@ async function renderHostInput() {
       <div class="card">
         <div class="card-header"><div><div class="card-title">Menunggu ACC Moderator</div><div class="card-subtitle">${submitted.length} report pending</div></div></div>
         ${submitted.length===0 ? `<div class="text-muted text-sm" style="padding:14px 0;">Tidak ada report pending.</div>` :
-        `<div style="overflow-x:auto;"><table><thead><tr><th>Tanggal</th><th>Sesi</th><th>Jam</th><th>GMV</th><th>Piece</th><th>Status</th></tr></thead><tbody>
-          ${submitted.map(r=>`<tr><td>${r.report_date}</td><td>${r.sessions||0}</td><td>${minutesToHM(r.total_minutes)}</td><td>${fmtIDR(r.total_gmv)}</td><td>${r.total_pieces||0}</td><td><span class="status-pill status-pending">⏳ Pending</span></td></tr>`).join('')}
+        `<div style="overflow-x:auto;"><table><thead><tr><th>Tanggal</th><th>Sesi 1</th><th>Sesi 2</th><th>Total Jam</th><th>GMV</th><th>Piece</th><th>Status</th></tr></thead><tbody>
+          ${submitted.map(r=>{
+            const det = getReportSessionDetails(r);
+            const s1 = det && det.s1_start && det.s1_end ? `${det.s1_start}–${det.s1_end}` : '–';
+            const s2 = det && det.s2_start && det.s2_end ? `${det.s2_start}–${det.s2_end}` : '–';
+            return `<tr><td>${r.report_date}</td><td style="font-family:var(--font-ui);font-size:0.78rem;">${s1}</td><td style="font-family:var(--font-ui);font-size:0.78rem;">${s2}</td><td style="color:var(--gold);font-weight:600;">${minutesToHM(r.total_minutes)}</td><td>${fmtIDR(r.total_gmv)}</td><td>${r.total_pieces||0}</td><td><span class="status-pill status-pending">⏳ Pending</span></td></tr>`;
+          }).join('')}
         </tbody></table></div>`}
       </div>
     </div>
   `;
 }
 
+/* Helper: hitung selisih menit antara dua waktu HH:MM (mendukung lewat tengah malam) */
+function calcMinutesBetween(startTime, endTime) {
+  if (!startTime || !endTime) return 0;
+  const [sh, sm] = startTime.split(':').map(Number);
+  const [eh, em] = endTime.split(':').map(Number);
+  if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return 0;
+  let start = sh * 60 + sm;
+  let end = eh * 60 + em;
+  if (end < start) end += 24 * 60; // lewat tengah malam
+  return Math.max(0, end - start);
+}
+
+/* Update preview total saat user mengetik di form report host */
+window.updateHostReportPreview = () => {
+  const s1Start = document.getElementById('rh_s1_start')?.value || '';
+  const s1End   = document.getElementById('rh_s1_end')?.value || '';
+  const s1Gmv   = parseFloat(document.getElementById('rh_s1_gmv')?.value) || 0;
+  const s1Pc    = parseInt(document.getElementById('rh_s1_pieces')?.value) || 0;
+  const s2Start = document.getElementById('rh_s2_start')?.value || '';
+  const s2End   = document.getElementById('rh_s2_end')?.value || '';
+  const s2Gmv   = parseFloat(document.getElementById('rh_s2_gmv')?.value) || 0;
+  const s2Pc    = parseInt(document.getElementById('rh_s2_pieces')?.value) || 0;
+
+  const m1 = calcMinutesBetween(s1Start, s1End);
+  const m2 = calcMinutesBetween(s2Start, s2End);
+  const totalMin = m1 + m2;
+  const totalGmv = s1Gmv + s2Gmv;
+  const totalPc  = s1Pc + s2Pc;
+  const sessionCount = (m1 > 0 ? 1 : 0) + (m2 > 0 ? 1 : 0);
+
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setText('rh_s1_dur', m1 > 0 ? minutesToHM(m1) : '–');
+  setText('rh_s2_dur', m2 > 0 ? minutesToHM(m2) : '–');
+  setText('rh_total_jam', minutesToHM(totalMin));
+  setText('rh_total_gmv', fmtIDR(totalGmv));
+  setText('rh_total_pieces', totalPc);
+  setText('rh_total_sesi', sessionCount);
+};
+
 window.openHostReportForm = (schedId, dateStr, sessions, sessionMin) => {
   const totalMin = sessions*sessionMin;
   showModal('hostReportModal', `
     <div class="modal-header">
-      <div><div class="modal-title">Report Live – ${dateStr}</div><div style="font-size:0.78rem;color:var(--light-gray);margin-top:2px;">${currentUser.hostName} · ${sessions} sesi × ${sessionMin}m = ${minutesToHM(totalMin)}</div></div>
+      <div><div class="modal-title">Report Live – ${dateStr}</div><div style="font-size:0.78rem;color:var(--light-gray);margin-top:2px;">${currentUser.hostName} · Jadwal: ${sessions} sesi × ${sessionMin}m = ${minutesToHM(totalMin)}</div></div>
       <button class="modal-close" onclick="closeModal('hostReportModal')"><i class="fas fa-times"></i></button>
     </div>
     <div class="modal-body">
-      <div style="padding:14px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:10px;margin-bottom:18px;">
-        <div style="font-family:var(--font-ui);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);margin-bottom:6px;">Auto-Calculated</div>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:0.85rem;">
-          <div><span style="color:var(--light-gray);">Total Sesi:</span> <strong>${sessions}</strong></div>
-          <div><span style="color:var(--light-gray);">Total Jam:</span> <strong>${minutesToHM(totalMin)}</strong></div>
+      <div style="padding:12px;background:rgba(255,107,157,0.06);border:1px solid rgba(255,107,157,0.2);border-radius:10px;margin-bottom:16px;font-size:0.78rem;color:#FF6B9D;">
+        <i class="fas fa-circle-info"></i> Isi jam mulai & jam selesai sesuai aktual setelah live. Total jam kerja akan dihitung otomatis.
+      </div>
+
+      <!-- SESI 1 -->
+      <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:12px;padding:14px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:var(--black);display:flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-weight:700;font-size:0.8rem;">1</div>
+          <div style="font-family:var(--font-ui);font-size:0.85rem;font-weight:600;color:var(--gold);letter-spacing:0.05em;">SESI 1</div>
+          <div style="margin-left:auto;font-family:var(--font-ui);font-size:0.75rem;color:var(--light-gray);">Durasi: <strong id="rh_s1_dur" style="color:var(--white);">–</strong></div>
+        </div>
+        <div class="grid-2" style="gap:10px;margin-bottom:10px;">
+          <div class="form-group" style="margin:0;"><label class="form-label">Jam Mulai</label><input type="time" class="form-input" id="rh_s1_start" oninput="updateHostReportPreview()"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Jam Selesai</label><input type="time" class="form-input" id="rh_s1_end" oninput="updateHostReportPreview()"></div>
+        </div>
+        <div class="grid-2" style="gap:10px;">
+          <div class="form-group" style="margin:0;"><label class="form-label">GMV Sesi 1 (Rp)</label><input type="number" min="0" class="form-input" id="rh_s1_gmv" placeholder="contoh: 750000" oninput="updateHostReportPreview()"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Piece Sesi 1</label><input type="number" min="0" class="form-input" id="rh_s1_pieces" placeholder="contoh: 12" oninput="updateHostReportPreview()"></div>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Total GMV (Rp) *</label><input type="number" min="0" class="form-input" id="rh_gmv" placeholder="contoh: 1500000"></div>
-      <div class="form-group"><label class="form-label">Total Piece Terjual *</label><input type="number" min="0" class="form-input" id="rh_pieces" placeholder="contoh: 25"></div>
-      <div style="padding:12px;background:rgba(224,139,76,0.06);border:1px solid rgba(224,139,76,0.2);border-radius:8px;font-size:0.78rem;color:var(--orange);"><i class="fas fa-info-circle"></i> Setelah disubmit, data akan dikunci dan menunggu ACC dari moderator.</div>
+
+      <!-- SESI 2 -->
+      <div style="background:rgba(76,140,224,0.06);border:1px solid rgba(76,140,224,0.2);border-radius:12px;padding:14px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#3a6db8,#4C8CE0);color:white;display:flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-weight:700;font-size:0.8rem;">2</div>
+          <div style="font-family:var(--font-ui);font-size:0.85rem;font-weight:600;color:var(--blue);letter-spacing:0.05em;">SESI 2</div>
+          <div style="margin-left:auto;font-family:var(--font-ui);font-size:0.75rem;color:var(--light-gray);">Durasi: <strong id="rh_s2_dur" style="color:var(--white);">–</strong></div>
+        </div>
+        <div class="grid-2" style="gap:10px;margin-bottom:10px;">
+          <div class="form-group" style="margin:0;"><label class="form-label">Jam Mulai</label><input type="time" class="form-input" id="rh_s2_start" oninput="updateHostReportPreview()"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Jam Selesai</label><input type="time" class="form-input" id="rh_s2_end" oninput="updateHostReportPreview()"></div>
+        </div>
+        <div class="grid-2" style="gap:10px;">
+          <div class="form-group" style="margin:0;"><label class="form-label">GMV Sesi 2 (Rp)</label><input type="number" min="0" class="form-input" id="rh_s2_gmv" placeholder="contoh: 750000" oninput="updateHostReportPreview()"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Piece Sesi 2</label><input type="number" min="0" class="form-input" id="rh_s2_pieces" placeholder="contoh: 13" oninput="updateHostReportPreview()"></div>
+        </div>
+      </div>
+
+      <!-- TOTAL PREVIEW -->
+      <div style="padding:14px;background:linear-gradient(135deg,rgba(76,175,125,0.08),rgba(201,168,76,0.06));border:1px solid rgba(76,175,125,0.25);border-radius:12px;margin-bottom:14px;">
+        <div style="font-family:var(--font-ui);font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--green);margin-bottom:10px;"><i class="fas fa-calculator"></i> Total Otomatis</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:0.85rem;">
+          <div><span style="color:var(--light-gray);">Total Sesi:</span> <strong id="rh_total_sesi">0</strong></div>
+          <div><span style="color:var(--light-gray);">Total Jam:</span> <strong id="rh_total_jam" style="color:var(--gold);">0j 0m</strong></div>
+          <div><span style="color:var(--light-gray);">Total GMV:</span> <strong id="rh_total_gmv" style="color:var(--green);">Rp 0</strong></div>
+          <div><span style="color:var(--light-gray);">Total Piece:</span> <strong id="rh_total_pieces" style="color:var(--blue);">0</strong></div>
+        </div>
+      </div>
+
+      <div style="padding:12px;background:rgba(224,139,76,0.06);border:1px solid rgba(224,139,76,0.2);border-radius:8px;font-size:0.78rem;color:var(--orange);"><i class="fas fa-info-circle"></i> Setelah disubmit, data akan dikunci & menunggu ACC moderator. Report ini akan otomatis muncul di histori host pada tanggal tersebut.</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('hostReportModal')">Batal</button>
-      <button class="btn btn-primary" onclick="submitHostReport('${schedId}','${dateStr}',${sessions},${totalMin})"><i class="fas fa-paper-plane"></i> Kirim ke Moderator</button>
+      <button class="btn btn-primary" onclick="submitHostReport('${schedId}','${dateStr}')"><i class="fas fa-paper-plane"></i> Kirim ke Moderator</button>
     </div>
   `, 'modal-md');
 };
 
-window.submitHostReport = async (schedId, dateStr, sessions, totalMin) => {
-  const gmv = parseFloat(document.getElementById('rh_gmv').value);
-  const pieces = parseInt(document.getElementById('rh_pieces').value);
-  if (isNaN(gmv) || gmv < 0) { showToast('Total GMV wajib diisi', 'error'); return; }
-  if (isNaN(pieces) || pieces < 0) { showToast('Total piece wajib diisi', 'error'); return; }
+window.submitHostReport = async (schedId, dateStr) => {
+  const s1Start = document.getElementById('rh_s1_start').value;
+  const s1End   = document.getElementById('rh_s1_end').value;
+  const s1Gmv   = parseFloat(document.getElementById('rh_s1_gmv').value);
+  const s1Pc    = parseInt(document.getElementById('rh_s1_pieces').value);
+  const s2Start = document.getElementById('rh_s2_start').value;
+  const s2End   = document.getElementById('rh_s2_end').value;
+  const s2Gmv   = parseFloat(document.getElementById('rh_s2_gmv').value);
+  const s2Pc    = parseInt(document.getElementById('rh_s2_pieces').value);
+
+  // Validasi: minimal sesi 1 harus diisi
+  if (!s1Start || !s1End) { showToast('Sesi 1: jam mulai & selesai wajib diisi', 'error'); return; }
+  const m1 = calcMinutesBetween(s1Start, s1End);
+  if (m1 <= 0) { showToast('Sesi 1: jam selesai harus setelah jam mulai', 'error'); return; }
+  if (isNaN(s1Gmv) || s1Gmv < 0) { showToast('GMV Sesi 1 wajib diisi (boleh 0)', 'error'); return; }
+  if (isNaN(s1Pc) || s1Pc < 0) { showToast('Piece Sesi 1 wajib diisi (boleh 0)', 'error'); return; }
+
+  // Sesi 2 opsional, tapi kalau ada salah satu diisi, semuanya wajib
+  let m2 = 0, gmv2 = 0, pc2 = 0;
+  const hasSesi2 = s2Start || s2End || !isNaN(s2Gmv) || !isNaN(s2Pc);
+  if (hasSesi2) {
+    if (!s2Start || !s2End) { showToast('Sesi 2: jam mulai & selesai wajib diisi', 'error'); return; }
+    m2 = calcMinutesBetween(s2Start, s2End);
+    if (m2 <= 0) { showToast('Sesi 2: jam selesai harus setelah jam mulai', 'error'); return; }
+    if (isNaN(s2Gmv) || s2Gmv < 0) { showToast('GMV Sesi 2 wajib diisi', 'error'); return; }
+    if (isNaN(s2Pc) || s2Pc < 0) { showToast('Piece Sesi 2 wajib diisi', 'error'); return; }
+    gmv2 = s2Gmv; pc2 = s2Pc;
+  }
+
+  const totalMin    = m1 + m2;
+  const totalGmv    = s1Gmv + gmv2;
+  const totalPieces = s1Pc + pc2;
+  const sessionCount = hasSesi2 ? 2 : 1;
+
   if (db) {
-    const { error } = await db.from('host_reports').insert([{
+    const payload = {
       host_user: currentUser.hostUser,
       report_date: dateStr,
       schedule_id: schedId,
-      sessions: sessions,
+      sessions: sessionCount,
       total_minutes: totalMin,
-      total_gmv: gmv,
-      total_pieces: pieces,
+      total_gmv: totalGmv,
+      total_pieces: totalPieces,
       status: 'pending',
-      created_at: new Date().toISOString()
-    }]);
+      created_at: new Date().toISOString(),
+      // Detail per sesi (disimpan sebagai kolom tambahan / fallback ke mod_note JSON jika kolom belum ada)
+      s1_start: s1Start, s1_end: s1End, s1_minutes: m1, s1_gmv: s1Gmv, s1_pieces: s1Pc,
+      s2_start: s2Start || null, s2_end: s2End || null, s2_minutes: m2, s2_gmv: gmv2, s2_pieces: pc2,
+    };
+    let { error } = await db.from('host_reports').insert([payload]);
+    // Fallback: jika kolom detail belum ada di skema lama, simpan ringkasannya saja + JSON di mod_note
+    if (error && /column .* does not exist/i.test(error.message || '')) {
+      const fallback = {
+        host_user: currentUser.hostUser,
+        report_date: dateStr,
+        schedule_id: schedId,
+        sessions: sessionCount,
+        total_minutes: totalMin,
+        total_gmv: totalGmv,
+        total_pieces: totalPieces,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        mod_note: JSON.stringify({
+          _details: {
+            s1_start: s1Start, s1_end: s1End, s1_minutes: m1, s1_gmv: s1Gmv, s1_pieces: s1Pc,
+            s2_start: s2Start || null, s2_end: s2End || null, s2_minutes: m2, s2_gmv: gmv2, s2_pieces: pc2
+          }
+        })
+      };
+      const r2 = await db.from('host_reports').insert([fallback]);
+      error = r2.error;
+    }
     if (error) { showToast('Gagal menyimpan: ' + error.message, 'error'); return; }
     // Notif untuk moderator
     await db.from('notifications').insert([{
       title: '📝 Report Host Live Baru',
-      message: `${currentUser.hostName} mengirim report ${dateStr} (GMV ${fmtIDR(gmv)}, ${pieces} piece). Mohon di-ACC.`,
+      message: `${currentUser.hostName} mengirim report ${dateStr} (${sessionCount} sesi · ${minutesToHM(totalMin)} · GMV ${fmtIDR(totalGmv)} · ${totalPieces} piece). Mohon di-ACC.`,
       target_role: 'moderator', icon: 'fa-clipboard-check',
       icon_bg: 'rgba(255,107,157,0.15)', icon_color: '#FF6B9D',
       is_read: false, created_at: new Date().toISOString()
@@ -2471,6 +2721,28 @@ window.submitHostReport = async (schedId, dateStr, sessions, totalMin) => {
   showToast('Report dikirim! Menunggu ACC moderator.', 'success');
   renderHostInput();
 };
+
+/* Helper: ambil detail sesi dari report (kolom langsung atau fallback dari mod_note JSON) */
+function getReportSessionDetails(r) {
+  if (!r) return null;
+  // Cek kolom langsung
+  if (r.s1_start || r.s1_minutes != null || r.s1_gmv != null) {
+    return {
+      s1_start: r.s1_start || null, s1_end: r.s1_end || null,
+      s1_minutes: +r.s1_minutes || 0, s1_gmv: +r.s1_gmv || 0, s1_pieces: +r.s1_pieces || 0,
+      s2_start: r.s2_start || null, s2_end: r.s2_end || null,
+      s2_minutes: +r.s2_minutes || 0, s2_gmv: +r.s2_gmv || 0, s2_pieces: +r.s2_pieces || 0
+    };
+  }
+  // Fallback: cek di mod_note JSON
+  if (r.mod_note && typeof r.mod_note === 'string' && r.mod_note.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(r.mod_note);
+      if (parsed && parsed._details) return parsed._details;
+    } catch(e){}
+  }
+  return null;
+}
 
 /* -----------  HOST TARGET PAGE  ----------- */
 async function renderHostTarget() {
@@ -3091,6 +3363,103 @@ window.deleteHostSchedule = async (id) => {
 
 
 /* -----------  MODERATOR: ACC REPORT HOST  ----------- */
+/* Render satu baris detail report (kartu) dengan template lengkap:
+   tanggal, host, sesi 1 (jam-jam-total), sesi 2 (jam-jam-total), GMV, piece, total jam */
+function buildModReportCard(r, mode /* 'pending' | 'approved' */) {
+  const det = getReportSessionDetails(r);
+  const hostName = HOST_USERS[r.host_user]?.name || r.host_user;
+  const hostInitial = hostName[0] || '?';
+  const hostColor = r.host_user === 'nina' ? '#FF6B9D' : '#C9A84C';
+  const statusBadge = mode === 'pending'
+    ? `<span class="status-pill status-pending">⏳ Menunggu ACC</span>`
+    : (r.status === 'approved' ? `<span class="status-pill status-approved">✓ ACC</span>` : `<span class="status-pill status-rejected">✗ Ditolak</span>`);
+
+  // Sesi 1
+  const s1HasTime = det && det.s1_start && det.s1_end;
+  const s1Block = `
+    <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.18);border-radius:10px;padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:var(--black);display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-weight:700;font-size:0.65rem;">1</span>
+        <span style="font-family:var(--font-ui);font-size:0.7rem;font-weight:600;color:var(--gold);letter-spacing:0.05em;">SESI 1</span>
+      </div>
+      <div style="font-size:0.8rem;font-family:var(--font-ui);">
+        <div style="color:var(--white);">${s1HasTime ? `${det.s1_start} – ${det.s1_end}` : '<span style="color:var(--light-gray);">– – : – –</span>'}</div>
+        <div style="color:var(--light-gray);font-size:0.7rem;margin-top:2px;">${det && det.s1_minutes ? minutesToHM(det.s1_minutes) : (s1HasTime ? minutesToHM(calcMinutesBetween(det.s1_start, det.s1_end)) : '–')}</div>
+        ${det ? `<div style="display:flex;gap:10px;margin-top:6px;font-size:0.72rem;">
+          <span style="color:var(--green);">${fmtIDRShort(det.s1_gmv||0)}</span>
+          <span style="color:var(--blue);">${det.s1_pieces||0} pc</span>
+        </div>` : ''}
+      </div>
+    </div>`;
+
+  // Sesi 2
+  const s2HasTime = det && det.s2_start && det.s2_end;
+  const s2Block = `
+    <div style="background:rgba(76,140,224,0.06);border:1px solid rgba(76,140,224,0.18);border-radius:10px;padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+        <span style="width:20px;height:20px;border-radius:6px;background:linear-gradient(135deg,#3a6db8,#4C8CE0);color:white;display:inline-flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-weight:700;font-size:0.65rem;">2</span>
+        <span style="font-family:var(--font-ui);font-size:0.7rem;font-weight:600;color:var(--blue);letter-spacing:0.05em;">SESI 2</span>
+      </div>
+      <div style="font-size:0.8rem;font-family:var(--font-ui);">
+        <div style="color:var(--white);">${s2HasTime ? `${det.s2_start} – ${det.s2_end}` : '<span style="color:var(--light-gray);">tidak ada</span>'}</div>
+        <div style="color:var(--light-gray);font-size:0.7rem;margin-top:2px;">${det && det.s2_minutes ? minutesToHM(det.s2_minutes) : (s2HasTime ? minutesToHM(calcMinutesBetween(det.s2_start, det.s2_end)) : '–')}</div>
+        ${det && (det.s2_gmv || det.s2_pieces) ? `<div style="display:flex;gap:10px;margin-top:6px;font-size:0.72rem;">
+          <span style="color:var(--green);">${fmtIDRShort(det.s2_gmv||0)}</span>
+          <span style="color:var(--blue);">${det.s2_pieces||0} pc</span>
+        </div>` : ''}
+      </div>
+    </div>`;
+
+  const actions = mode === 'pending' ? `
+    <button class="btn btn-success btn-sm" onclick="approveHostReport('${r.id}','${r.host_user}','${r.report_date}',${r.total_gmv||0})"><i class="fas fa-check"></i> ACC</button>
+    <button class="btn btn-danger btn-sm" onclick="rejectHostReport('${r.id}','${r.host_user}','${r.report_date}')"><i class="fas fa-times"></i> Tolak</button>
+    <button class="btn btn-secondary btn-sm btn-icon" onclick="editHostReportFromMod('${r.id}')" title="Edit"><i class="fas fa-pen"></i></button>
+    <button class="btn btn-danger btn-sm btn-icon" onclick="deleteHostReportFromMod('${r.id}','${r.report_date}','${r.host_user}')" title="Hapus"><i class="fas fa-trash"></i></button>
+  ` : `
+    <button class="btn btn-secondary btn-sm btn-icon" onclick="editHostReportFromMod('${r.id}')" title="Edit"><i class="fas fa-pen"></i></button>
+    <button class="btn btn-danger btn-sm btn-icon" onclick="deleteHostReportFromMod('${r.id}','${r.report_date}','${r.host_user}')" title="Hapus"><i class="fas fa-trash"></i></button>
+  `;
+
+  return `
+    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(201,168,76,0.12);border-radius:14px;padding:16px;margin-bottom:14px;transition:var(--transition);">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="width:42px;height:42px;border-radius:11px;background:linear-gradient(135deg,${hostColor},var(--gold));display:flex;align-items:center;justify-content:center;color:white;font-family:var(--font-display);font-weight:600;font-size:1.1rem;">${hostInitial}</div>
+        <div>
+          <div style="font-family:var(--font-display);font-size:1.05rem;font-weight:600;color:var(--white);">${hostName}</div>
+          <div style="font-family:var(--font-ui);font-size:0.74rem;color:var(--light-gray);"><i class="fas fa-calendar-day" style="color:var(--gold);"></i> ${r.report_date}</div>
+        </div>
+        <div style="margin-left:auto;">${statusBadge}</div>
+      </div>
+
+      <div class="grid-2" style="gap:10px;margin-bottom:14px;">
+        ${s1Block}
+        ${s2Block}
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">
+        <div style="text-align:center;padding:10px 6px;background:rgba(201,168,76,0.06);border-radius:8px;">
+          <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;color:var(--gold);">${minutesToHM(r.total_minutes||0)}</div>
+          <div style="font-size:0.6rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">Total Jam</div>
+        </div>
+        <div style="text-align:center;padding:10px 6px;background:rgba(76,175,125,0.06);border-radius:8px;">
+          <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;color:var(--green);">${fmtIDRShort(r.total_gmv||0)}</div>
+          <div style="font-size:0.6rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">Total GMV</div>
+        </div>
+        <div style="text-align:center;padding:10px 6px;background:rgba(76,140,224,0.06);border-radius:8px;">
+          <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;color:var(--blue);">${r.total_pieces||0}</div>
+          <div style="font-size:0.6rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">Total Piece</div>
+        </div>
+        <div style="text-align:center;padding:10px 6px;background:rgba(155,89,182,0.06);border-radius:8px;">
+          <div style="font-family:var(--font-display);font-size:1.1rem;font-weight:600;color:var(--purple);">${r.sessions||0}</div>
+          <div style="font-size:0.6rem;color:var(--light-gray);text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">Jumlah Sesi</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">${actions}</div>
+    </div>
+  `;
+}
+
 async function renderModHostReports() {
   const all = await getHostReports();
   const pending = all.filter(r => r.status === 'pending');
@@ -3099,45 +3468,37 @@ async function renderModHostReports() {
     <div style="animation:fadeIn 0.4s ease;">
       <div class="card" style="margin-bottom:20px;">
         <div class="card-header"><div><div class="card-title"><i class="fas fa-clipboard-check" style="color:var(--orange);"></i> Menunggu ACC (${pending.length})</div><div class="card-subtitle">Review report harian dari Nina & Sekar</div></div></div>
-        ${pending.length===0 ? `<div style="padding:30px 0;text-align:center;color:var(--green);"><i class="fas fa-check-circle" style="font-size:2rem;display:block;margin-bottom:10px;"></i>Semua report sudah di-ACC! 🎉</div>` :
-        `<div style="overflow-x:auto;"><table>
-          <thead><tr><th>Tanggal</th><th>Host</th><th>Sesi</th><th>Jam</th><th>GMV</th><th>Piece</th><th>Aksi</th></tr></thead>
-          <tbody>${pending.map(r=>`<tr>
-            <td>${r.report_date}</td>
-            <td><span class="host-name-pill">${HOST_USERS[r.host_user]?.name || r.host_user}</span></td>
-            <td>${r.sessions||0}</td>
-            <td>${minutesToHM(r.total_minutes)}</td>
-            <td><strong>${fmtIDR(r.total_gmv)}</strong></td>
-            <td>${r.total_pieces||0}</td>
-            <td><div style="display:flex;gap:6px;">
-              <button class="btn btn-success btn-sm" onclick="approveHostReport('${r.id}','${r.host_user}','${r.report_date}',${r.total_gmv})"><i class="fas fa-check"></i> ACC</button>
-              <button class="btn btn-danger btn-sm" onclick="rejectHostReport('${r.id}','${r.host_user}','${r.report_date}')"><i class="fas fa-times"></i> Tolak</button>
-              <button class="btn btn-secondary btn-sm btn-icon" onclick="editHostReportFromMod('${r.id}')"><i class="fas fa-pen"></i></button>
-            </div></td>
-          </tr>`).join('')}</tbody>
-        </table></div>`}
+        ${pending.length===0
+          ? `<div style="padding:30px 0;text-align:center;color:var(--green);"><i class="fas fa-check-circle" style="font-size:2rem;display:block;margin-bottom:10px;"></i>Semua report sudah di-ACC! 🎉</div>`
+          : pending.map(r => buildModReportCard(r, 'pending')).join('')}
       </div>
 
       <div class="card">
         <div class="card-header"><div><div class="card-title">Riwayat ACC Terakhir</div><div class="card-subtitle">${approved.length} report sudah di-ACC</div></div></div>
-        ${approved.length===0 ? `<div class="text-muted text-sm" style="padding:14px 0;">Belum ada report ter-ACC.</div>` :
-        `<div style="overflow-x:auto;"><table>
-          <thead><tr><th>Tanggal</th><th>Host</th><th>Sesi</th><th>Jam</th><th>GMV</th><th>Piece</th><th>Status</th><th></th></tr></thead>
-          <tbody>${approved.map(r=>`<tr>
-            <td>${r.report_date}</td>
-            <td><span class="host-name-pill">${HOST_USERS[r.host_user]?.name || r.host_user}</span></td>
-            <td>${r.sessions||0}</td>
-            <td>${minutesToHM(r.total_minutes)}</td>
-            <td>${fmtIDR(r.total_gmv)}</td>
-            <td>${r.total_pieces||0}</td>
-            <td><span class="status-pill status-approved">✓ ACC</span></td>
-            <td><button class="btn btn-secondary btn-sm btn-icon" onclick="editHostReportFromMod('${r.id}')" title="Edit (moderator only)"><i class="fas fa-pen"></i></button></td>
-          </tr>`).join('')}</tbody>
-        </table></div>`}
+        ${approved.length===0
+          ? `<div class="text-muted text-sm" style="padding:14px 0;">Belum ada report ter-ACC.</div>`
+          : approved.map(r => buildModReportCard(r, 'approved')).join('')}
       </div>
     </div>
   `;
 }
+
+window.deleteHostReportFromMod = async (id, dateStr, hostUser) => {
+  if (!confirm(`Hapus report tanggal ${dateStr} dari ${HOST_USERS[hostUser]?.name || hostUser}?\n\nData ini akan hilang permanen dan tidak masuk ke perhitungan target.`)) return;
+  if (db) {
+    const { error } = await db.from('host_reports').delete().eq('id', id);
+    if (error) { showToast('Gagal hapus: '+error.message, 'error'); return; }
+    await db.from('notifications').insert([{
+      title: '🗑️ Report Dihapus',
+      message: `Report tanggal ${dateStr} dihapus moderator. Hubungi moderator jika ada kekeliruan.`,
+      target_role: 'host', target_user: hostUser,
+      icon: 'fa-trash', icon_bg: 'rgba(224,82,82,0.15)', icon_color: '#E05252',
+      is_read: false, created_at: new Date().toISOString()
+    }]);
+  }
+  showToast('Report dihapus', 'info');
+  renderModHostReports();
+};
 window.approveHostReport = async (id, hostUser, dateStr, gmv) => {
   if (db) {
     const { error } = await db.from('host_reports').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', id);
@@ -3173,14 +3534,38 @@ window.rejectHostReport = async (id, hostUser, dateStr) => {
 window.editHostReportFromMod = async (id) => {
   const { data } = await db.from('host_reports').select('*').eq('id', id).limit(1);
   const r = data && data[0]; if (!r) return;
+  const det = getReportSessionDetails(r) || {};
   showModal('modHostEditModal', `
     <div class="modal-header"><div class="modal-title">Edit Report (Moderator) – ${r.report_date}</div><button class="modal-close" onclick="closeModal('modHostEditModal')"><i class="fas fa-times"></i></button></div>
     <div class="modal-body">
-      <div style="padding:10px;background:rgba(155,89,182,0.06);border:1px solid rgba(155,89,182,0.2);border-radius:8px;margin-bottom:14px;font-size:0.78rem;color:var(--purple);"><i class="fas fa-shield-halved"></i> Mode moderator – kamu bisa mengubah data setelah ACC.</div>
-      <div class="form-group"><label class="form-label">Sesi</label><input type="number" min="0" class="form-input" id="me_sessions" value="${r.sessions||0}"></div>
-      <div class="form-group"><label class="form-label">Total Menit</label><input type="number" min="0" class="form-input" id="me_minutes" value="${r.total_minutes||0}"></div>
-      <div class="form-group"><label class="form-label">Total GMV</label><input type="number" min="0" class="form-input" id="me_gmv" value="${r.total_gmv||0}"></div>
-      <div class="form-group"><label class="form-label">Total Piece</label><input type="number" min="0" class="form-input" id="me_pieces" value="${r.total_pieces||0}"></div>
+      <div style="padding:10px;background:rgba(155,89,182,0.06);border:1px solid rgba(155,89,182,0.2);border-radius:8px;margin-bottom:14px;font-size:0.78rem;color:var(--purple);"><i class="fas fa-shield-halved"></i> Mode moderator – kamu bisa mengubah detail tiap sesi & status. Total akan dihitung ulang otomatis.</div>
+
+      <!-- Sesi 1 -->
+      <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="font-family:var(--font-ui);font-size:0.78rem;font-weight:600;color:var(--gold);margin-bottom:10px;">SESI 1</div>
+        <div class="grid-2" style="gap:10px;margin-bottom:10px;">
+          <div class="form-group" style="margin:0;"><label class="form-label">Jam Mulai</label><input type="time" class="form-input" id="me_s1_start" value="${det.s1_start || ''}"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Jam Selesai</label><input type="time" class="form-input" id="me_s1_end" value="${det.s1_end || ''}"></div>
+        </div>
+        <div class="grid-2" style="gap:10px;">
+          <div class="form-group" style="margin:0;"><label class="form-label">GMV Sesi 1</label><input type="number" min="0" class="form-input" id="me_s1_gmv" value="${det.s1_gmv || 0}"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Piece Sesi 1</label><input type="number" min="0" class="form-input" id="me_s1_pieces" value="${det.s1_pieces || 0}"></div>
+        </div>
+      </div>
+
+      <!-- Sesi 2 -->
+      <div style="background:rgba(76,140,224,0.06);border:1px solid rgba(76,140,224,0.2);border-radius:10px;padding:12px;margin-bottom:12px;">
+        <div style="font-family:var(--font-ui);font-size:0.78rem;font-weight:600;color:var(--blue);margin-bottom:10px;">SESI 2 (kosongkan jika tidak ada)</div>
+        <div class="grid-2" style="gap:10px;margin-bottom:10px;">
+          <div class="form-group" style="margin:0;"><label class="form-label">Jam Mulai</label><input type="time" class="form-input" id="me_s2_start" value="${det.s2_start || ''}"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Jam Selesai</label><input type="time" class="form-input" id="me_s2_end" value="${det.s2_end || ''}"></div>
+        </div>
+        <div class="grid-2" style="gap:10px;">
+          <div class="form-group" style="margin:0;"><label class="form-label">GMV Sesi 2</label><input type="number" min="0" class="form-input" id="me_s2_gmv" value="${det.s2_gmv || 0}"></div>
+          <div class="form-group" style="margin:0;"><label class="form-label">Piece Sesi 2</label><input type="number" min="0" class="form-input" id="me_s2_pieces" value="${det.s2_pieces || 0}"></div>
+        </div>
+      </div>
+
       <div class="form-group"><label class="form-label">Status</label>
         <select class="form-select" id="me_status">
           <option value="pending" ${r.status==='pending'?'selected':''}>Pending</option>
@@ -3196,16 +3581,56 @@ window.editHostReportFromMod = async (id) => {
   `, 'modal-md');
 };
 window.saveModHostEdit = async (id, hostUser, dateStr) => {
+  const s1Start = document.getElementById('me_s1_start').value || null;
+  const s1End   = document.getElementById('me_s1_end').value || null;
+  const s1Gmv   = parseFloat(document.getElementById('me_s1_gmv').value) || 0;
+  const s1Pc    = parseInt(document.getElementById('me_s1_pieces').value) || 0;
+  const s2Start = document.getElementById('me_s2_start').value || null;
+  const s2End   = document.getElementById('me_s2_end').value || null;
+  const s2Gmv   = parseFloat(document.getElementById('me_s2_gmv').value) || 0;
+  const s2Pc    = parseInt(document.getElementById('me_s2_pieces').value) || 0;
+
+  const m1 = (s1Start && s1End) ? calcMinutesBetween(s1Start, s1End) : 0;
+  const m2 = (s2Start && s2End) ? calcMinutesBetween(s2Start, s2End) : 0;
+  const totalMin = m1 + m2;
+  const totalGmv = s1Gmv + s2Gmv;
+  const totalPc  = s1Pc + s2Pc;
+  const sessionCount = (m1 > 0 ? 1 : 0) + (m2 > 0 ? 1 : 0);
+
+  const status = document.getElementById('me_status').value;
+
   const payload = {
-    sessions: parseInt(document.getElementById('me_sessions').value)||0,
-    total_minutes: parseInt(document.getElementById('me_minutes').value)||0,
-    total_gmv: parseFloat(document.getElementById('me_gmv').value)||0,
-    total_pieces: parseInt(document.getElementById('me_pieces').value)||0,
-    status: document.getElementById('me_status').value
+    sessions: sessionCount || 1,
+    total_minutes: totalMin,
+    total_gmv: totalGmv,
+    total_pieces: totalPc,
+    status: status,
+    s1_start: s1Start, s1_end: s1End, s1_minutes: m1, s1_gmv: s1Gmv, s1_pieces: s1Pc,
+    s2_start: s2Start, s2_end: s2End, s2_minutes: m2, s2_gmv: s2Gmv, s2_pieces: s2Pc,
   };
-  if (payload.status === 'approved') payload.approved_at = new Date().toISOString();
+  if (status === 'approved') payload.approved_at = new Date().toISOString();
+
   if (db) {
-    const { error } = await db.from('host_reports').update(payload).eq('id', id);
+    let { error } = await db.from('host_reports').update(payload).eq('id', id);
+    if (error && /column .* does not exist/i.test(error.message || '')) {
+      // fallback: skema lama, simpan detail di mod_note
+      const fallback = {
+        sessions: sessionCount || 1,
+        total_minutes: totalMin,
+        total_gmv: totalGmv,
+        total_pieces: totalPc,
+        status: status,
+        mod_note: JSON.stringify({
+          _details: {
+            s1_start: s1Start, s1_end: s1End, s1_minutes: m1, s1_gmv: s1Gmv, s1_pieces: s1Pc,
+            s2_start: s2Start, s2_end: s2End, s2_minutes: m2, s2_gmv: s2Gmv, s2_pieces: s2Pc
+          }
+        })
+      };
+      if (status === 'approved') fallback.approved_at = new Date().toISOString();
+      const r2 = await db.from('host_reports').update(fallback).eq('id', id);
+      error = r2.error;
+    }
     if (error) { showToast('Gagal: '+error.message, 'error'); return; }
     await db.from('notifications').insert([{
       title: '✏️ Report Diperbarui Moderator',
