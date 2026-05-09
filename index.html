@@ -140,6 +140,11 @@ body { font-family: var(--font-body); background: var(--black); color: var(--whi
 /* Deadline lock overlay */
 .sess-locked-overlay { position: relative; }
 .sess-locked-overlay::after { content: '🔒 Terkunci'; position: absolute; inset: 0; background: rgba(0,0,0,0.7); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: var(--light-gray); font-family: var(--font-ui); font-size: 0.78rem; letter-spacing: 0.1em; }
+/* Unlock request styles */
+.unlock-request-card { background: linear-gradient(135deg, rgba(76,140,224,0.08), rgba(155,89,182,0.05)); border: 1px solid rgba(76,140,224,0.3); border-radius: 10px; padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+.unlock-request-waiting { border-color: rgba(224,139,76,0.4); background: linear-gradient(135deg, rgba(224,139,76,0.08), rgba(224,82,82,0.04)); }
+.unlock-request-approved { border-color: rgba(76,175,125,0.4); background: linear-gradient(135deg, rgba(76,175,125,0.08), rgba(76,175,125,0.03)); }
+.unlock-request-rejected { border-color: rgba(224,82,82,0.3); background: rgba(224,82,82,0.05); opacity: 0.7; }
 .session-num { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--gold-dark), var(--gold)); color: var(--black); display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-weight: 700; font-size: 0.95rem; }
 .session-time { font-family: var(--font-ui); font-size: 0.85rem; color: var(--white); font-weight: 500; }
 .session-duration { font-family: var(--font-ui); font-size: 0.7rem; color: var(--light-gray); margin-top: 2px; letter-spacing: 0.05em; }
@@ -1817,6 +1822,23 @@ async function loadNotifications() {
   const dot = document.getElementById('notifDot'); const navBadge = document.getElementById('notifNavBadge');
   if (dot) dot.style.display = unreadNotifs > 0 ? 'block' : 'none';
   if (navBadge) { navBadge.style.display = unreadNotifs > 0 ? 'block' : 'none'; navBadge.textContent = unreadNotifs; }
+
+  // Moderator: badge on ACC Report nav for pending unlock requests + pending reports
+  if (currentUser.role === 'moderator') {
+    try {
+      const { data: pendingReports } = await db.from('host_reports').select('id').eq('status', 'pending');
+      const { data: pendingUnlocks } = await db.from('unlock_requests').select('id').eq('status', 'pending');
+      const totalBadge = ((pendingReports||[]).length) + ((pendingUnlocks||[]).length);
+      const accNavEl = document.getElementById('nav-mod-host-reports');
+      if (accNavEl) {
+        let accBadge = accNavEl.querySelector('.unlock-nav-badge');
+        if (totalBadge > 0) {
+          if (!accBadge) { accBadge = document.createElement('span'); accBadge.className = 'nav-badge unlock-nav-badge'; accNavEl.appendChild(accBadge); }
+          accBadge.style.display = 'inline-block'; accBadge.textContent = totalBadge;
+        } else if (accBadge) { accBadge.remove(); }
+      }
+    } catch(e) {}
+  }
   const list = document.getElementById('notifList');
   if (list && notifs.length > 0) list.innerHTML = notifs.map(n => `<div class="notif-item ${n.is_read?'':'unread'}" onclick="markNotifRead('${n.id}')"><div class="notif-icon-wrap" style="background:${n.icon_bg||'rgba(201,168,76,0.15)'}"><i class="fas ${n.icon||'fa-bell'}" style="color:${n.icon_color||'var(--gold)'}"></i></div><div style="flex:1;min-width:0;"><div class="notif-text"><strong>${escapeHtml(n.title)}</strong><br>${escapeHtml(n.message)}</div><div class="notif-time"><i class="fas fa-clock" style="font-size:0.6rem;margin-right:4px;color:var(--gold);"></i>${getRelativeTime(n.created_at)} · ${new Date(n.created_at).toLocaleString('id-ID',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'})}</div></div>${!n.is_read?`<div style="width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0;margin-top:6px;"></div>`:''}</div>`).join('');
   // Pop-up logic: show popups for unread notifications NOT yet shown
@@ -2609,6 +2631,72 @@ function isPastDeadline(schedDate) {
   return schedDate < todayStr;
 }
 
+/* HOST: Minta buka kunci report yang sudah terkunci */
+window.requestUnlock = async (dateStr, hostUser) => {
+  // Tampilkan modal konfirmasi + alasan
+  showModal('unlockRequestModal', `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="fas fa-key" style="color:var(--blue);margin-right:8px;"></i>Minta Buka Kunci Report</div>
+        <div style="font-size:0.82rem;color:var(--light-gray);margin-top:3px;">${dateStr}</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('unlockRequestModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="background:rgba(76,140,224,0.08);border:1px solid rgba(76,140,224,0.25);border-radius:10px;padding:14px 16px;margin-bottom:18px;display:flex;gap:12px;align-items:flex-start;">
+        <i class="fas fa-info-circle" style="color:var(--blue);font-size:1.1rem;margin-top:2px;flex-shrink:0;"></i>
+        <div style="font-size:0.82rem;color:var(--white2);line-height:1.6;">
+          Report tanggal <strong style="color:var(--blue);">${dateStr}</strong> sudah melewati batas pengisian (00:00). 
+          Kamu bisa mengajukan permintaan kepada moderator untuk membuka kunci sementara. Permintaan akan diproses setelah moderator menyetujui.
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Alasan Permintaan Buka Kunci *</label>
+        <textarea class="form-textarea" id="unlock_reason" placeholder="Contoh: Lupa mengisi karena koneksi internet bermasalah, sesi selesai terlambat, dll." rows="3" style="min-height:80px;"></textarea>
+      </div>
+      <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--light-gray);">
+        <i class="fas fa-clock" style="color:var(--gold);"></i> Setelah dikirim, kamu akan mendapat notifikasi saat moderator memberikan keputusan.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('unlockRequestModal')">Batal</button>
+      <button class="btn btn-primary" onclick="submitUnlockRequest('${dateStr}','${hostUser}')"><i class="fas fa-paper-plane"></i> Kirim Permintaan</button>
+    </div>
+  `);
+};
+
+window.submitUnlockRequest = async (dateStr, hostUser) => {
+  const reason = (document.getElementById('unlock_reason')?.value || '').trim();
+  if (!reason) { showToast('Mohon isi alasan permintaan buka kunci', 'error'); return; }
+  if (!db) return;
+  // Cek apakah sudah ada request pending/approved untuk tanggal ini
+  const { data: existing } = await db.from('unlock_requests').select('*').eq('host_user', hostUser).eq('report_date', dateStr).limit(1);
+  if (existing && existing.length > 0) {
+    showToast('Permintaan sudah pernah dikirim untuk tanggal ini', 'warning');
+    closeModal('unlockRequestModal');
+    return;
+  }
+  const { error } = await db.from('unlock_requests').insert([{
+    host_user: hostUser,
+    report_date: dateStr,
+    reason: reason,
+    status: 'pending',
+    created_at: new Date().toISOString()
+  }]);
+  if (error) { showToast('Gagal mengirim: ' + error.message, 'error'); return; }
+  // Kirim notif ke moderator
+  await db.from('notifications').insert([{
+    title: '🔓 Permintaan Buka Kunci Report',
+    message: `${HOST_USERS[hostUser]?.name || hostUser} meminta buka kunci report tanggal ${dateStr}. Alasan: ${reason}`,
+    target_role: 'moderator',
+    icon: 'fa-key', icon_bg: 'rgba(76,140,224,0.15)', icon_color: '#4C8CE0',
+    is_read: false, created_at: new Date().toISOString()
+  }]);
+  closeModal('unlockRequestModal');
+  showToast('Permintaan terkirim! Tunggu konfirmasi dari moderator.', 'success');
+  renderHostInput();
+};
+
 /** Update badge notif di nav "Input Report Harian" */
 function updateHostInputBadge(count) {
   const navEl = document.getElementById('nav-host-input');
@@ -2776,16 +2864,42 @@ async function renderHostInput() {
           </div>`;
         }).join('')}
 
-        ${pendingPastList.length > 0 ? `
-          <div style="margin-top:4px;">
+        ${pendingPastList.length > 0 ? await (async () => {
+          // Fetch existing unlock requests for this host
+          let unlockMap = {};
+          if (db) {
+            const { data: ulReqs } = await db.from('unlock_requests').select('*').eq('host_user', hu);
+            (ulReqs||[]).forEach(u => { unlockMap[u.report_date] = u; });
+          }
+          return `<div style="margin-top:4px;">
             <div style="font-family:var(--font-ui);font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);margin-bottom:8px;"><i class="fas fa-lock"></i> Jadwal Terkunci (Lewat Deadline)</div>
-            ${pendingPastList.map(s=>`
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;background:rgba(224,82,82,0.05);border:1px solid rgba(224,82,82,0.15);margin-bottom:6px;opacity:0.7;">
-                <i class="fas fa-lock" style="color:var(--red);"></i>
-                <div style="flex:1;font-size:0.82rem;color:var(--light-gray);">${s.schedule_date} – ${s.sessions_count} sesi</div>
-                <span style="font-size:0.7rem;color:var(--red);">Tidak bisa diisi</span>
-              </div>`).join('')}
-          </div>` : ''}
+            ${pendingPastList.map(s => {
+              const ul = unlockMap[s.schedule_date];
+              let actionBtn = '';
+              let statusBadge = '';
+              if (!ul) {
+                actionBtn = `<button class="btn btn-secondary btn-sm" style="font-size:0.72rem;border-color:rgba(76,140,224,0.4);color:var(--blue);" onclick="requestUnlock('${s.schedule_date}','${hu}')"><i class="fas fa-key"></i> Minta Buka Kunci</button>`;
+              } else if (ul.status === 'pending') {
+                statusBadge = `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><span style="padding:3px 8px;background:rgba(224,139,76,0.15);border:1px solid rgba(224,139,76,0.3);border-radius:6px;font-size:0.68rem;color:var(--orange);"><i class="fas fa-hourglass-half"></i> Menunggu Konfirmasi</span><span style="font-size:0.62rem;color:var(--light-gray);">Moderator sedang review</span></div>`;
+              } else if (ul.status === 'approved') {
+                actionBtn = `<button class="btn btn-primary btn-sm" style="font-size:0.72rem;" onclick="openHostReportForm('${s.id}','${s.schedule_date}',${s.sessions_count},${s.session_minutes},'${encodeURIComponent(JSON.stringify(parseSessionsFromNotes(s.notes, s.sessions_count, s.start_time, s.session_minutes)))}',0)"><i class="fas fa-lock-open"></i> Isi Report</button>`;
+                statusBadge = `<span style="padding:3px 8px;background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.3);border-radius:6px;font-size:0.68rem;color:var(--green);margin-right:4px;"><i class="fas fa-check"></i> Dibuka Moderator</span>`;
+              } else if (ul.status === 'rejected') {
+                statusBadge = `<span style="padding:3px 8px;background:rgba(224,82,82,0.12);border:1px solid rgba(224,82,82,0.25);border-radius:6px;font-size:0.68rem;color:var(--red);">✗ Ditolak${ul.mod_note?': '+ul.mod_note:''}</span>`;
+              }
+              const borderColor = ul ? (ul.status==='approved'?'rgba(76,175,125,0.3)':ul.status==='rejected'?'rgba(224,82,82,0.2)':'rgba(224,139,76,0.3)') : 'rgba(224,82,82,0.15)';
+              const bgColor = ul ? (ul.status==='approved'?'rgba(76,175,125,0.05)':ul.status==='rejected'?'rgba(224,82,82,0.04)':'rgba(224,139,76,0.05)') : 'rgba(224,82,82,0.05)';
+              return `<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;background:${bgColor};border:1px solid ${borderColor};margin-bottom:8px;">
+                <i class="fas fa-${ul&&ul.status==='approved'?'lock-open':ul&&ul.status==='rejected'?'ban':'lock'}" style="color:${ul&&ul.status==='approved'?'var(--green)':ul&&ul.status==='rejected'?'var(--red)':'var(--red)'};font-size:1rem;flex-shrink:0;"></i>
+                <div style="flex:1;">
+                  <div style="font-size:0.82rem;color:var(--white);font-weight:500;">${s.schedule_date}</div>
+                  <div style="font-size:0.7rem;color:var(--light-gray);">${s.sessions_count} sesi · Lewat batas isi</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">${statusBadge}${actionBtn}</div>
+              </div>`;
+            }).join('')}
+          </div>`;
+        })() : ''}
       </div>
 
       <div class="card">
@@ -2864,11 +2978,20 @@ window.parseSessionsFromNotes = (notes, sessionsCount, startTime, sessionMin) =>
   return out.slice(0, sessionsCount);
 };
 
-window.openHostReportForm = (schedId, dateStr, sessions, sessionMin, sessDataB64, startSessIdx = 0) => {
-  // DEADLINE LOCK: tidak bisa edit jika sudah lewat hari H
+window.openHostReportForm = async (schedId, dateStr, sessions, sessionMin, sessDataB64, startSessIdx = 0) => {
+  // DEADLINE LOCK: tidak bisa edit jika sudah lewat hari H, kecuali ada unlock request yang diapprove
   if (isPastDeadline(dateStr)) {
-    showToast(`Report ${dateStr} sudah dikunci (lewat 00:00). Tidak bisa diubah.`, 'error');
-    return;
+    // Cek apakah ada unlock request approved
+    let unlockOk = false;
+    if (db) {
+      const { data: ulData } = await db.from('unlock_requests').select('*')
+        .eq('host_user', currentUser.hostUser).eq('report_date', dateStr).eq('status', 'approved').limit(1);
+      unlockOk = ulData && ulData.length > 0;
+    }
+    if (!unlockOk) {
+      showToast(`Report ${dateStr} sudah dikunci (lewat 00:00). Tidak bisa diubah.`, 'error');
+      return;
+    }
   }
 
   const dateObj = new Date(dateStr + 'T00:00:00');
@@ -3749,6 +3872,14 @@ async function renderModHostReports() {
   const approved = all.filter(r => r.status === 'approved').slice(0, 40);
   const rejected = all.filter(r => r.status === 'rejected').slice(0, 20);
 
+  // Fetch unlock requests
+  let unlockRequests = [];
+  if (db) {
+    const { data: ulData } = await db.from('unlock_requests').select('*').order('created_at', { ascending: false }).limit(50);
+    unlockRequests = ulData || [];
+  }
+  const unlockPending = unlockRequests.filter(u => u.status === 'pending');
+
   function buildReportRow(r, showActions) {
     // Parse session details from notes field if stored as JSON, else fallback
     let sessionHTML = '';
@@ -3789,6 +3920,49 @@ async function renderModHostReports() {
 
   document.getElementById('pageContent').innerHTML = `
     <div style="animation:fadeIn 0.4s ease;">
+
+      <!-- UNLOCK REQUESTS -->
+      ${unlockPending.length > 0 ? `<div class="card" style="margin-bottom:20px;border-color:rgba(76,140,224,0.35);">
+        <div class="card-header">
+          <div>
+            <div class="card-title"><i class="fas fa-key" style="color:var(--blue);"></i> Permintaan Buka Kunci <span style="background:rgba(76,140,224,0.2);color:var(--blue);padding:2px 10px;border-radius:20px;font-size:0.85rem;">${unlockPending.length}</span></div>
+            <div class="card-subtitle">Host meminta akses untuk mengisi report yang sudah terkunci</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${unlockRequests.map(u => {
+            const hostName = HOST_USERS[u.host_user]?.name || u.host_user;
+            const isPend = u.status === 'pending';
+            const isAcc = u.status === 'approved';
+            const isRej = u.status === 'rejected';
+            const borderC = isPend ? 'rgba(224,139,76,0.4)' : isAcc ? 'rgba(76,175,125,0.35)' : 'rgba(224,82,82,0.25)';
+            const bgC = isPend ? 'rgba(224,139,76,0.06)' : isAcc ? 'rgba(76,175,125,0.05)' : 'rgba(224,82,82,0.04)';
+            const timeAgo = (() => { const d = new Date(u.created_at); const now = new Date(); const diff = Math.round((now-d)/60000); return diff < 60 ? diff+'m lalu' : Math.round(diff/60)+'j lalu'; })();
+            return `<div style="border:1px solid ${borderC};background:${bgC};border-radius:10px;padding:14px 16px;">
+              <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,rgba(255,107,157,0.2),rgba(201,168,76,0.15));display:flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-weight:700;font-size:1rem;color:#FF6B9D;flex-shrink:0;">${HOST_USERS[u.host_user]?.initial || '?'}</div>
+                <div style="flex:1;">
+                  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                    <span class="host-name-pill">${hostName}</span>
+                    <span style="font-family:var(--font-ui);font-size:0.8rem;font-weight:600;color:var(--white);">${u.report_date}</span>
+                    <span style="font-size:0.68rem;color:var(--light-gray);">${timeAgo}</span>
+                    ${isPend ? '<span class="status-pill status-pending">⏳ Menunggu</span>' : isAcc ? '<span class="status-pill status-approved">✓ Dibuka</span>' : '<span class="status-pill status-rejected">✗ Ditolak</span>'}
+                  </div>
+                  <div style="font-size:0.8rem;color:var(--white2);padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:6px;border-left:2px solid ${isPend?'var(--orange)':isAcc?'var(--green)':'var(--red)'};">
+                    <i class="fas fa-quote-left" style="font-size:0.7rem;color:var(--light-gray);margin-right:4px;"></i>${u.reason}
+                  </div>
+                  ${u.mod_note ? `<div style="font-size:0.72rem;color:var(--light-gray);margin-top:6px;"><i class="fas fa-reply" style="color:var(--purple);"></i> Catatan mod: ${u.mod_note}</div>` : ''}
+                </div>
+                ${isPend ? `<div style="display:flex;gap:6px;flex-shrink:0;">
+                  <button class="btn btn-success btn-sm" onclick="approveUnlockRequest('${u.id}','${u.host_user}','${u.report_date}')"><i class="fas fa-check"></i> Buka</button>
+                  <button class="btn btn-danger btn-sm" onclick="rejectUnlockRequest('${u.id}','${u.host_user}','${u.report_date}')"><i class="fas fa-times"></i></button>
+                </div>` : ''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+
       <!-- PENDING -->
       <div class="card" style="margin-bottom:20px;">
         <div class="card-header">
@@ -3967,6 +4141,38 @@ window.saveModHostEdit = async (id, hostUser, dateStr) => {
   }
   closeModal('modHostEditModal');
   showToast('Report diperbarui', 'success');
+  renderModHostReports();
+};
+
+/* -----------  MODERATOR: APPROVE / REJECT UNLOCK REQUESTS  ----------- */
+window.approveUnlockRequest = async (id, hostUser, dateStr) => {
+  if (!db) return;
+  const { error } = await db.from('unlock_requests').update({ status: 'approved', mod_note: '', updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('Gagal: ' + error.message, 'error'); return; }
+  await db.from('notifications').insert([{
+    title: '🔓 Kunci Report Dibuka!',
+    message: `Moderator menyetujui permintaanmu. Report tanggal ${dateStr} sekarang bisa diisi. Segera isi sebelum ditutup kembali!`,
+    target_role: 'host', target_user: hostUser,
+    icon: 'fa-lock-open', icon_bg: 'rgba(76,175,125,0.15)', icon_color: '#4CAF7D',
+    is_read: false, created_at: new Date().toISOString()
+  }]);
+  showToast(`Permintaan disetujui! ${HOST_USERS[hostUser]?.name || hostUser} bisa mengisi report ${dateStr}.`, 'success');
+  renderModHostReports();
+};
+
+window.rejectUnlockRequest = async (id, hostUser, dateStr) => {
+  const note = prompt('Alasan penolakan (opsional):') || '';
+  if (!db) return;
+  const { error } = await db.from('unlock_requests').update({ status: 'rejected', mod_note: note, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('Gagal: ' + error.message, 'error'); return; }
+  await db.from('notifications').insert([{
+    title: '🔒 Permintaan Buka Kunci Ditolak',
+    message: `Moderator menolak permintaan buka kunci report ${dateStr}${note ? '. Alasan: ' + note : ''}. Hubungi moderator langsung jika ada pertanyaan.`,
+    target_role: 'host', target_user: hostUser,
+    icon: 'fa-lock', icon_bg: 'rgba(224,82,82,0.15)', icon_color: '#E05252',
+    is_read: false, created_at: new Date().toISOString()
+  }]);
+  showToast('Permintaan ditolak.', 'warning');
   renderModHostReports();
 };
 
