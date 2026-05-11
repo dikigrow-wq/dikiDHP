@@ -2475,19 +2475,31 @@ async function renderRoleReport(role) {
   // Check task notifications for this role
   let taskNotifs = [];
   if (db) {
-    const { data: notifs } = await db.from('notifications').select('*').eq('target_role', role).eq('is_read', false);
+    const { data: notifs } = await db.from('notifications').select('*').eq('target_role', role).eq('is_read', false).order('created_at', { ascending: false });
     taskNotifs = (notifs || []).filter(n => n.title && (n.title.includes('Task') || n.title.includes('Tugas') || n.title.includes('Leads')));
   }
-  const taskBanner = taskNotifs.length > 0 ? `
-    <div style="background:linear-gradient(135deg,rgba(201,168,76,0.12),rgba(255,107,157,0.06));border:1px solid rgba(201,168,76,0.4);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;animation:pulse 2s ease infinite;">
-      <div style="width:40px;height:40px;border-radius:10px;background:rgba(201,168,76,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <i class="fas fa-bell" style="color:var(--gold);font-size:1.1rem;"></i>
-      </div>
+  const taskItems = taskNotifs.map(n => `
+    <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:rgba(201,168,76,0.07);border-radius:7px;margin-top:6px;">
+      <i class="fas fa-circle-dot" style="color:var(--gold);font-size:0.72rem;margin-top:4px;flex-shrink:0;"></i>
       <div style="flex:1;">
-        <div style="font-family:var(--font-ui);font-size:0.8rem;font-weight:700;color:var(--gold);">📋 ${taskNotifs.length} Task dari Moderator</div>
-        <div style="font-size:0.75rem;color:var(--white2);margin-top:3px;">Kamu memiliki task yang perlu diselesaikan. Cek panel notifikasi untuk detailnya.</div>
+        <div style="font-size:0.82rem;font-weight:600;color:var(--gold);">${escapeHtml(n.title)}</div>
+        ${n.message ? `<div style="font-size:0.75rem;color:var(--white2);margin-top:2px;">${escapeHtml(n.message)}</div>` : ''}
+        <div style="font-size:0.67rem;color:var(--light-gray);margin-top:3px;">${getRelativeTime(n.created_at)}</div>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="toggleNotifPanel()"><i class="fas fa-bell"></i> Lihat</button>
+    </div>`).join('');
+  const taskBanner = taskNotifs.length > 0 ? `
+    <div style="background:linear-gradient(135deg,rgba(201,168,76,0.12),rgba(255,107,157,0.06));border:1px solid rgba(201,168,76,0.4);border-radius:12px;padding:14px 18px;margin-bottom:20px;animation:pulse 2s ease infinite;">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;">
+        <div style="width:40px;height:40px;border-radius:10px;background:rgba(201,168,76,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="fas fa-bell" style="color:var(--gold);font-size:1.1rem;"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="font-family:var(--font-ui);font-size:0.82rem;font-weight:700;color:var(--gold);">⚠️ ${taskNotifs.length} Task Wajib dari Moderator</div>
+          <div style="font-size:0.74rem;color:var(--white2);margin-top:2px;">Selesaikan dengan mengisi leads hari ini. Task otomatis selesai setelah kamu simpan.</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openLeadsFormFromCalendar('${todayStr}','${role}')"><i class="fas fa-user-plus"></i> Isi Leads</button>
+      </div>
+      ${taskItems}
     </div>` : '';
 
   // Build list grouped by date
@@ -2647,7 +2659,25 @@ window.saveRoleReport = async () => {
   if (!db) { showToast('Database tidak terhubung', 'error'); return; }
   const { error } = await db.from('role_reports').insert([payload]);
   if (error) { showToast('Gagal simpan: ' + error.message, 'error'); return; }
-  showToast('Report berhasil disimpan!', 'success');
+
+  // Sync ke tabel leads juga agar data customer tercatat
+  const leadsPayload = {
+    role, lead_date: tanggal, name, wa_name: waName,
+    city, category, followup_status: followup, notes: notes || null,
+    created_at: new Date().toISOString()
+  };
+  await db.from('leads').insert([leadsPayload]);
+
+  // Mark notifikasi task wajib isi leads sebagai sudah dibaca
+  const { data: taskNotifs } = await db.from('notifications')
+    .select('id').eq('target_role', role).eq('is_read', false);
+  const taskIds = (taskNotifs || []).map(n => n.id).filter(Boolean);
+  if (taskIds.length > 0) {
+    await db.from('notifications').update({ is_read: true }).in('id', taskIds);
+  }
+  if (typeof loadNotifications === 'function') await loadNotifications();
+
+  showToast('Report berhasil disimpan & leads tercatat! ✅', 'success');
   closeModal('roleReportModal');
   renderRoleReport(role);
 };
@@ -2761,13 +2791,27 @@ window.openLeadsFormFromCalendar = async (dateStr, role) => {
   // Task notif banner for this role
   let taskBannerHtml = '';
   if (db) {
-    const { data: tNotifs } = await db.from('notifications').select('*').eq('target_role', role).eq('is_read', false);
-    const taskCount = (tNotifs||[]).filter(n=>n.title&&(n.title.includes('Task')||n.title.includes('Tugas')||n.title.includes('Leads'))).length;
-    if (taskCount > 0) {
-      taskBannerHtml = `<div style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-        <i class="fas fa-bell" style="color:var(--gold);"></i>
-        <span style="font-size:0.8rem;color:var(--gold);">📋 ${taskCount} task dari moderator menunggu. Pastikan kamu isi leads hari ini!</span>
-      </div>`;
+    const { data: tNotifs } = await db.from('notifications').select('*').eq('target_role', role).eq('is_read', false).order('created_at', { ascending: false });
+    const taskNotifs = (tNotifs||[]).filter(n=>n.title&&(n.title.includes('Task')||n.title.includes('Tugas')||n.title.includes('Leads')));
+    if (taskNotifs.length > 0) {
+      const taskItems = taskNotifs.map(n => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:rgba(201,168,76,0.08);border-radius:6px;margin-top:6px;">
+          <i class="fas fa-circle-exclamation" style="color:var(--gold);font-size:0.75rem;margin-top:3px;flex-shrink:0;"></i>
+          <div>
+            <div style="font-size:0.8rem;font-weight:600;color:var(--gold);">${escapeHtml(n.title)}</div>
+            <div style="font-size:0.75rem;color:var(--white2);margin-top:2px;">${escapeHtml(n.message||'')}</div>
+            <div style="font-size:0.68rem;color:var(--light-gray);margin-top:3px;">${getRelativeTime(n.created_at)}</div>
+          </div>
+        </div>`).join('');
+      taskBannerHtml = `
+        <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.35);border-radius:10px;padding:12px 14px;margin-bottom:14px;animation:pulse 2.5s ease infinite;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <i class="fas fa-bell" style="color:var(--gold);"></i>
+            <span style="font-family:var(--font-ui);font-size:0.78rem;font-weight:700;letter-spacing:0.05em;color:var(--gold);text-transform:uppercase;">⚠️ ${taskNotifs.length} Task Wajib dari Moderator</span>
+          </div>
+          ${taskItems}
+          <div style="font-size:0.72rem;color:var(--light-gray);margin-top:8px;"><i class="fas fa-info-circle"></i> Task akan otomatis selesai setelah kamu simpan leads hari ini.</div>
+        </div>`;
     }
   }
 
@@ -2864,21 +2908,53 @@ window.saveLeadsFromCalendar = async (closeAfter) => {
     created_at: new Date().toISOString()
   };
   if (!db) { showToast('Database tidak terhubung', 'error'); return; }
+
+  // 1. Simpan ke tabel leads
   const { error } = await db.from('leads').insert([payload]);
   if (error) { showToast('Gagal simpan: ' + error.message, 'error'); return; }
-  showToast('Leads berhasil ditambahkan! ✅', 'success');
+
+  // 2. Otomatis masukkan juga ke riwayat role_reports
+  const reportPayload = {
+    role,
+    report_date: dateStr,
+    name,
+    wa_name: waName,
+    city,
+    category,
+    followup_status: followup,
+    notes: notes || null,
+    is_locked: false,
+    created_at: new Date().toISOString()
+  };
+  await db.from('role_reports').insert([reportPayload]);
+
+  // 3. Mark notifikasi task wajib isi leads sebagai sudah dibaca (is_read: true)
+  const { data: taskNotifs } = await db.from('notifications')
+    .select('id')
+    .eq('target_role', role)
+    .eq('is_read', false);
+  const taskIds = (taskNotifs || [])
+    .filter(n => n.id)
+    .map(n => n.id);
+  if (taskIds.length > 0) {
+    await db.from('notifications').update({ is_read: true }).in('id', taskIds);
+  }
+
+  // 4. Refresh badge notifikasi
+  if (typeof loadNotifications === 'function') await loadNotifications();
+
+  showToast('Leads berhasil ditambahkan & masuk riwayat report! ✅', 'success');
 
   if (closeAfter) {
     closeModal('leadsCalModal');
-    // Refresh calendar
-    if (role === 'admin') renderAdminCalendar();
-    else renderB2BCalendar();
+    // Refresh calendar & report
+    if (role === 'admin') { renderAdminCalendar(); if (typeof renderRoleReport === 'function') renderRoleReport('admin'); }
+    else { renderB2BCalendar(); if (typeof renderRoleReport === 'function') renderRoleReport('b2b'); }
   } else {
     // Clear form for another entry
     document.getElementById('lc_name').value = '';
     document.getElementById('lc_wa_name').value = '';
     document.getElementById('lc_city').value = '';
-
     document.getElementById('lc_category').value = '';
     document.getElementById('lc_followup').value = '';
     document.getElementById('lc_notes').value = '';
