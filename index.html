@@ -4053,7 +4053,7 @@ window.submitHostReport = async () => {
     sessionData.push({ sessIdx: i, start: s, end: e, gmv: g, pieces: p, minutes: m });
   }
 
-  if (totalGMV <= 0) { showToast('Total GMV harus lebih dari 0', 'error'); return; }
+  // GMV boleh 0
 
   if (db) {
     // Check if report exists for this date (for upsert/merge)
