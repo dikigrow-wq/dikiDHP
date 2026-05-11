@@ -4015,11 +4015,19 @@ window.submitHostReport = async () => {
   const schedId = (document.getElementById('rh_sched_id')||{}).value;
   const totalSessions = parseInt((document.getElementById('rh_sessions_count')||{}).value)||0;
 
-  // DEADLINE LOCK
+  // DEADLINE LOCK — kecuali ada unlock request yang sudah diapprove
   if (isPastDeadline(dateStr)) {
-    showToast(`Report ${dateStr} sudah dikunci (lewat 00:00). Tidak bisa diubah.`, 'error');
-    closeModal('hostReportModal');
-    return;
+    let unlockOk = false;
+    if (db) {
+      const { data: ulData } = await db.from('unlock_requests').select('id')
+        .eq('host_user', currentUser.hostUser).eq('report_date', dateStr).eq('status', 'approved').limit(1);
+      unlockOk = ulData && ulData.length > 0;
+    }
+    if (!unlockOk) {
+      showToast(`Report ${dateStr} sudah dikunci (lewat 00:00). Tidak bisa diubah.`, 'error');
+      closeModal('hostReportModal');
+      return;
+    }
   }
 
   let sessIndices;
