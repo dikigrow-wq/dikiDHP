@@ -1174,19 +1174,18 @@ async function startLeadsInput(dateStr, role) {
 function showLeadsForm(index) {
   if (index >= leadsInputTotal) { showToast(`${leadsInputTotal} leads berhasil disimpan!`, 'success'); if (currentUser.role === 'admin') renderAdminCalendar(); else if (currentUser.role === 'b2b') renderB2BCalendar(); return; }  leadsInputCurrent = index;
   const modalId = 'leadsFormModal';
-  showModal(modalId, `<div class="modal-header"><div><div class="modal-title">Input Leads ${index+1} dari ${leadsInputTotal}</div><div style="font-size:0.8rem;color:var(--light-gray);">${leadsInputDate}</div></div><button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button></div><div class="modal-body"><div class="leads-progress"><div style="display:flex;justify-content:space-between;font-family:var(--font-ui);font-size:0.78rem;"><span>Progress</span><span style="color:var(--gold);">${index}/${leadsInputTotal}</span></div><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${(index/leadsInputTotal)*100}%"></div></div></div><div class="form-group"><label class="form-label">Nama Lengkap *</label><input type="text" class="form-input" id="lf_name" placeholder="Nama leads..."></div><div class="form-group"><label class="form-label">Nomor WhatsApp *</label><div style="display:flex;align-items:center;gap:0;"><span style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-right:none;border-radius:var(--radius-sm) 0 0 var(--radius-sm);padding:12px 14px;color:var(--gold);font-family:var(--font-ui);font-size:0.9rem;font-weight:600;white-space:nowrap;line-height:1;">+62</span><input type="tel" class="form-input" id="lf_phone" placeholder="8xxxxxxxxxx" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;border-left:none;" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div><div style="font-size:0.7rem;color:var(--light-gray);margin-top:4px;">Masukkan sisa nomor tanpa angka 0 di depan. Contoh: 812xxxxxxxx</div></div><div class="form-group"><label class="form-label">Wilayah / Kota *</label><input type="text" class="form-input" id="lf_city" placeholder="Jakarta Selatan..."></div><div class="form-group"><label class="form-label">Kategori *</label><select class="form-select" id="lf_category"><option value="cold">Cold</option><option value="warm">Warm</option><option value="hot">Hot</option><option value="closing">Closing</option></select></div><div class="form-group"><label class="form-label">Status Follow-up</label><select class="form-select" id="lf_followup">${FOLLOWUP_STATUSES.map(s=>`<option value="${s.value}">${s.label}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Catatan (maks. 50 karakter)</label><textarea class="form-textarea" id="lf_notes" rows="4" placeholder="Tulis catatan detail..." maxlength="50"></textarea><div id="notesCharCount" style="font-size:0.7rem;color:var(--light-gray);margin-top:4px;">0 / 50 karakter</div></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="saveLeadForm(${index})">${index+1<leadsInputTotal?`Simpan & Lanjut <i class="fas fa-arrow-right"></i>`:`<i class="fas fa-check"></i> Selesai`}</button></div>`);
+  showModal(modalId, `<div class="modal-header"><div><div class="modal-title">Input Leads ${index+1} dari ${leadsInputTotal}</div><div style="font-size:0.8rem;color:var(--light-gray);">${leadsInputDate}</div></div><button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button></div><div class="modal-body"><div class="leads-progress"><div style="display:flex;justify-content:space-between;font-family:var(--font-ui);font-size:0.78rem;"><span>Progress</span><span style="color:var(--gold);">${index}/${leadsInputTotal}</span></div><div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${(index/leadsInputTotal)*100}%"></div></div></div><div class="form-group"><label class="form-label">Nama Lengkap *</label><input type="text" class="form-input" id="lf_name" placeholder="Nama leads..."></div><div class="form-group"><label class="form-label">No. WhatsApp * (format: +62xxx)</label><input type="tel" class="form-input" id="lf_phone" placeholder="+628xxxxxxxxx"></div><div class="form-group"><label class="form-label">Wilayah / Kota *</label><input type="text" class="form-input" id="lf_city" placeholder="Jakarta Selatan..."></div><div class="form-group"><label class="form-label">Kategori *</label><select class="form-select" id="lf_category"><option value="cold">Cold</option><option value="warm">Warm</option><option value="hot">Hot</option><option value="closing">Closing</option></select></div><div class="form-group"><label class="form-label">Status Follow-up</label><select class="form-select" id="lf_followup">${FOLLOWUP_STATUSES.map(s=>`<option value="${s.value}">${s.label}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Catatan (maks. 50 karakter)</label><textarea class="form-textarea" id="lf_notes" rows="4" placeholder="Tulis catatan detail..." maxlength="50"></textarea><div id="notesCharCount" style="font-size:0.7rem;color:var(--light-gray);margin-top:4px;">0 / 50 karakter</div></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="saveLeadForm(${index})">${index+1<leadsInputTotal?`Simpan & Lanjut <i class="fas fa-arrow-right"></i>`:`<i class="fas fa-check"></i> Selesai`}</button></div>`);
   document.getElementById('lf_notes').addEventListener('input', function() { const len = this.value.length; const el = document.getElementById('notesCharCount'); if (el) { el.textContent = `${len} / 50 karakter`; el.style.color = len > 50 ? 'var(--red)' : len === 50 ? 'var(--orange)' : 'var(--light-gray)'; } });
 }
 async function saveLeadForm(index) {
   const name = document.getElementById('lf_name').value.trim();
-  let phone = '+62' + document.getElementById('lf_phone').value.trim().replace(/^0+/, '');
+  let phone = document.getElementById('lf_phone').value.trim();
   const city = document.getElementById('lf_city').value.trim();
   const category = document.getElementById('lf_category').value;
   const followup = document.getElementById('lf_followup').value;
   const notes = document.getElementById('lf_notes').value.trim();
   if (!name) { showToast('Nama wajib diisi', 'error'); return; }
-  const rawPhone = document.getElementById('lf_phone').value.trim();
-  if (!rawPhone || rawPhone.length < 6) { showToast('Nomor WA wajib diisi (min 6 digit)', 'error'); return; }
+  if (!phone) { showToast('Nomor WA wajib diisi', 'error'); return; }
   if (!city) { showToast('Wilayah wajib diisi', 'error'); return; }
   if (notes.length > 50) { showToast('Catatan maksimal 50 karakter', 'error'); return; }
   phone = formatPhone(phone);
@@ -1198,9 +1197,9 @@ async function saveLeadForm(index) {
 }
 function formatPhone(phone) {
   phone = phone.replace(/\s/g, '').replace(/-/g, '');
-  if (phone.startsWith('+62')) { const rest = phone.slice(3); if (rest.length < 6) return null; return phone; }
   if (phone.startsWith('08')) return '+62' + phone.slice(1);
   if (phone.startsWith('8')) return '+62' + phone;
+  if (phone.startsWith('+62')) return phone;
   if (phone.startsWith('62')) return '+' + phone;
   return null;
 }
@@ -2514,7 +2513,7 @@ async function renderRoleReport(role) {
       <div class="card-header"><div class="card-title">Riwayat Report</div><div class="card-subtitle">${allReports.length} entri</div></div>
       ${allReports.length === 0 ? `<div class="empty-state" style="padding:30px;"><i class="fas fa-file-pen" style="font-size:2rem;"></i><p>Belum ada report. Klik "Tambah Report Hari Ini" untuk mulai.</p></div>` :
       `<div class="table-wrap"><table>
-        <thead><tr><th>Tanggal</th><th>Nama</th><th>Nama WhatsApp</th><th>Wilayah</th><th>Kategori</th><th>Status Follow-up</th><th>Catatan</th><th>Aksi</th></tr></thead>
+        <thead><tr><th>Tanggal</th><th>Nama</th><th>Nomor WhatsApp</th><th>Wilayah</th><th>Kategori</th><th>Status Follow-up</th><th>Catatan</th><th>Aksi</th></tr></thead>
         <tbody>${allReports.map((r,i)=>{
           const isToday = r.report_date === todayStr;
           const locked = r.is_locked;
@@ -2572,8 +2571,11 @@ window.openRoleReportForm = async (role, dateStr) => {
           <input type="text" class="form-input" id="rr_name" placeholder="Nama leads/kontak">
         </div>
         <div class="form-group">
-          <label class="form-label">Nama WhatsApp <span style="color:var(--red);">*</span></label>
-          <input type="text" class="form-input" id="rr_wa_name" placeholder="Nama di WA">
+          <label class="form-label">Nomor WhatsApp <span style="color:var(--red);">*</span></label>
+          <div style="display:flex;align-items:center;gap:0;">
+            <span style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-right:none;border-radius:var(--radius-sm) 0 0 var(--radius-sm);padding:12px 12px;color:var(--gold);font-family:var(--font-ui);font-size:0.9rem;font-weight:600;white-space:nowrap;line-height:1;">+62</span>
+            <input type="tel" class="form-input" id="rr_wa_name" placeholder="8xx-xxxx-xxxx" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;border-left:none;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          </div>
         </div>
       </div>
       <div class="grid-2" style="gap:12px;">
@@ -2624,7 +2626,8 @@ window.saveRoleReport = async () => {
   const role = document.getElementById('rr_role').value;
   const dateStr = document.getElementById('rr_date').value;
   const name = document.getElementById('rr_name').value.trim();
-  const waName = document.getElementById('rr_wa_name').value.trim();
+  const waRaw = document.getElementById('rr_wa_name').value.trim().replace(/[^0-9]/g,'');
+  const waName = waRaw ? '+62' + waRaw : '';
   const city = document.getElementById('rr_city').value.trim();
   const category = document.getElementById('rr_category').value;
   const followup = document.getElementById('rr_followup').value;
@@ -2664,7 +2667,12 @@ window.openEditRoleReport = async (id, role) => {
       <input type="hidden" id="rre_role" value="${role}">
       <div class="grid-2" style="gap:12px;">
         <div class="form-group"><label class="form-label">Nama *</label><input type="text" class="form-input" id="rre_name" value="${r.name||''}"></div>
-        <div class="form-group"><label class="form-label">Nama WhatsApp *</label><input type="text" class="form-input" id="rre_wa_name" value="${r.wa_name||''}"></div>
+        <div class="form-group"><label class="form-label">Nomor WhatsApp *</label>
+          <div style="display:flex;align-items:center;gap:0;">
+            <span style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-right:none;border-radius:var(--radius-sm) 0 0 var(--radius-sm);padding:12px 12px;color:var(--gold);font-family:var(--font-ui);font-size:0.9rem;font-weight:600;white-space:nowrap;line-height:1;">+62</span>
+            <input type="tel" class="form-input" id="rre_wa_name" placeholder="8xx-xxxx-xxxx" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;border-left:none;" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="${(r.wa_name||'').replace(/^\+62/,'')}">
+          </div>
+        </div>
       </div>
       <div class="grid-2" style="gap:12px;">
         <div class="form-group"><label class="form-label">Wilayah *</label><input type="text" class="form-input" id="rre_city" value="${r.city||''}"></div>
@@ -2692,7 +2700,8 @@ window.updateRoleReport = async () => {
   const id = document.getElementById('rre_id').value;
   const role = document.getElementById('rre_role').value;
   const name = document.getElementById('rre_name').value.trim();
-  const waName = document.getElementById('rre_wa_name').value.trim();
+  const waRaw = document.getElementById('rre_wa_name').value.trim().replace(/[^0-9]/g,'');
+  const waName = waRaw ? '+62' + waRaw : '';
   const city = document.getElementById('rre_city').value.trim();
   const category = document.getElementById('rre_category').value;
   const followup = document.getElementById('rre_followup').value;
@@ -2780,8 +2789,11 @@ window.openLeadsFormFromCalendar = async (dateStr, role) => {
           <input type="text" class="form-input" id="lc_name" placeholder="Nama leads/kontak">
         </div>
         <div class="form-group">
-          <label class="form-label">Nama WhatsApp <span style="color:var(--red);">*</span></label>
-          <input type="text" class="form-input" id="lc_wa_name" placeholder="Nama di WhatsApp">
+          <label class="form-label">Nomor WhatsApp <span style="color:var(--red);">*</span></label>
+          <div style="display:flex;align-items:center;gap:0;">
+            <span style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-right:none;border-radius:var(--radius-sm) 0 0 var(--radius-sm);padding:12px 12px;color:var(--gold);font-family:var(--font-ui);font-size:0.9rem;font-weight:600;white-space:nowrap;line-height:1;">+62</span>
+            <input type="tel" class="form-input" id="lc_wa_name" placeholder="8xx-xxxx-xxxx" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;border-left:none;" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+          </div>
         </div>
       </div>
       <div class="grid-2" style="gap:12px;">
@@ -2834,7 +2846,8 @@ window.saveLeadsFromCalendar = async (closeAfter) => {
   const role = document.getElementById('lc_role').value;
   const dateStr = document.getElementById('lc_date').value;
   const name = document.getElementById('lc_name').value.trim();
-  const waName = document.getElementById('lc_wa_name').value.trim();
+  const waRaw = document.getElementById('lc_wa_name').value.trim().replace(/[^0-9]/g,'');
+  const waName = waRaw ? '+62' + waRaw : '';
   const city = document.getElementById('lc_city').value.trim();
   const category = document.getElementById('lc_category').value;
   const followup = document.getElementById('lc_followup').value;
@@ -2865,6 +2878,7 @@ window.saveLeadsFromCalendar = async (closeAfter) => {
     document.getElementById('lc_name').value = '';
     document.getElementById('lc_wa_name').value = '';
     document.getElementById('lc_city').value = '';
+
     document.getElementById('lc_category').value = '';
     document.getElementById('lc_followup').value = '';
     document.getElementById('lc_notes').value = '';
@@ -2934,7 +2948,7 @@ window.showLeadsCalendarDay = async (dateStr, role) => {
 
   const leadsHtml = leads.length === 0 ? `<div class="text-muted text-sm" style="padding:10px 0;">Belum ada leads pada tanggal ini.</div>` :
     `<div class="table-wrap"><table>
-      <thead><tr><th>Nama</th><th>Nama WA</th><th>Wilayah</th><th>Kategori</th><th>Follow-up</th></tr></thead>
+      <thead><tr><th>Nama</th><th>Nomor WA</th><th>Wilayah</th><th>Kategori</th><th>Follow-up</th></tr></thead>
       <tbody>${leads.map(l=>`<tr>
         <td><strong>${l.name}</strong></td>
         <td style="font-size:0.8rem;">${l.wa_name||'-'}</td>
