@@ -847,6 +847,10 @@ function enterApp(role, hostUser = null) {
       } catch(e) {}
     }, 1000);
   }
+  // For admin/b2b: check task notifications
+  if ((role === 'admin' || role === 'b2b') && db) {
+    setTimeout(async () => { await checkInputReportTaskBadge(role); }, 1200);
+  }
   const { greeting: greet, emoji: greetEmoji, isNight: greetIsNight } = getGreeting(currentUser.name);
   const greetToast = greetIsNight
     ? `${greetEmoji} ${greet}, ${currentUser.name}! ${getNightJoke()}`
@@ -883,6 +887,8 @@ function setupSidebar(role) {
       { id: 'mod-host-schedule', icon: 'fas fa-calendar-plus', label: 'Atur Jadwal Live' },
       { id: 'mod-host-reports', icon: 'fas fa-clipboard-check', label: 'ACC Report Harian' },
       { id: 'mod-host-overview', icon: 'fas fa-video', label: 'Performa Host' },
+      { id: 'mod-host-target', icon: 'fas fa-bullseye', label: 'Update Target Host' },
+      { id: 'mod-mkt-report', icon: 'fas fa-chart-pie', label: 'Dashboard Marketing' },
       { section: 'MANAJEMEN' },
       { id: 'mod-notifications', icon: 'fas fa-bell', label: 'Kirim Notifikasi', badge: true },
       { id: 'mod-leads', icon: 'fas fa-users', label: 'Semua Data Leads' },
@@ -894,6 +900,7 @@ function setupSidebar(role) {
       { id: 'admin-analytics', icon: 'fas fa-chart-bar', label: 'Analitik' },
       { section: 'DATA' },
       { id: 'admin-table', icon: 'fas fa-table', label: 'Data Customers' },
+      { id: 'admin-input-report', icon: 'fas fa-keyboard', label: 'Input Report Harian' },
     ],
     b2b: [
       { section: 'UTAMA' },
@@ -902,11 +909,13 @@ function setupSidebar(role) {
       { id: 'b2b-analytics', icon: 'fas fa-chart-bar', label: 'Analitik B2B' },
       { section: 'DATA' },
       { id: 'b2b-table', icon: 'fas fa-table', label: 'Data Customers B2B' },
+      { id: 'b2b-input-report', icon: 'fas fa-keyboard', label: 'Input Report Harian' },
     ],
     guest: [
       { section: 'LIHAT' },
       { id: 'guest-dashboard', icon: 'fas fa-chart-pie', label: 'Analitik Semua Role' },
       { id: 'guest-tasks', icon: 'fas fa-list-check', label: 'Semua Task' },
+      { id: 'guest-mkt-dashboard', icon: 'fas fa-chart-line', label: 'Dashboard Marketing' },
     ],
     host: [
       { section: 'UTAMA' },
@@ -929,7 +938,7 @@ function setupSidebar(role) {
   nav.innerHTML = '';
   (navDefs[role] || []).forEach(item => {
     if (item.section) { nav.innerHTML += `<div class="nav-section-label">${item.section}</div>`; }
-    else { nav.innerHTML += `<div class="nav-item" id="nav-${item.id}" onclick="navigateTo('${item.id}')"><i class="${item.icon}"></i><span>${item.label}</span>${item.badge ? `<span class="nav-badge" id="notifNavBadge" style="display:none;">0</span>` : ''}</div>`; }
+    else { nav.innerHTML += `<div class="nav-item" id="nav-${item.id}" onclick="navigateTo('${item.id}')"><i class="${item.icon}"></i><span>${item.label}</span>${item.badge ? `<span class="nav-badge" id="notifNavBadge" style="display:none;">0</span>` : ''}${(item.id==='admin-input-report'||item.id==='b2b-input-report'||item.id==='host-input') ? `<span class="nav-badge-report" id="taskBadge_${item.id}" style="display:none;"></span>` : ''}</div>`; }
   });
   const firstItem = navDefs[role].find(i => i.id);
   if (firstItem) navigateTo(firstItem.id);
@@ -943,9 +952,12 @@ function navigateTo(sectionId) {
     'mod-dashboard':'Dashboard Semua Role','mod-calendar':'Kelola Iklan & Kalender','mod-tasks':'Semua Task',
     'mod-analytics':'Analitik Semua Role','mod-notifications':'Kirim Notifikasi','mod-leads':'Semua Data Leads',
     'mod-host-schedule':'Atur Jadwal Live Host','mod-host-reports':'ACC Report Host Live','mod-host-overview':'Performa Host Live',
+    'mod-host-target':'Update Target Host Live','mod-mkt-report':'Dashboard Marketing',
     'admin-dashboard':'Dashboard Admin','admin-calendar':'Kalender Leads Admin','admin-analytics':'Analitik Admin',
-    'admin-table':'Data Customers Admin','b2b-dashboard':'Dashboard B2B','b2b-calendar':'Kalender Leads B2B',
-    'b2b-analytics':'Analitik B2B','b2b-table':'Data Customers B2B','guest-dashboard':'Analitik & Overview','guest-tasks':'Semua Task',
+    'admin-table':'Data Customers Admin','admin-input-report':'Input Report Harian – Admin',
+    'b2b-dashboard':'Dashboard B2B','b2b-calendar':'Kalender Leads B2B',
+    'b2b-analytics':'Analitik B2B','b2b-table':'Data Customers B2B','b2b-input-report':'Input Report Harian – B2B',
+    'guest-dashboard':'Analitik & Overview','guest-tasks':'Semua Task','guest-mkt-dashboard':'Dashboard Marketing',
     'host-dashboard':'Dashboard Host Live','host-calendar':'Kalender Live','host-input':'Input Report Harian','host-target':'Target Bulanan',
     'mkt-dashboard':'Dashboard Marketing','mkt-budget':'Budget Marketing Bulanan','mkt-kol':'KOL & Affiliate Bulanan',
   };
@@ -966,18 +978,23 @@ async function renderSection(sectionId) {
     case 'admin-calendar': await renderAdminCalendar(); break;
     case 'admin-analytics': await renderAdminAnalytics(); break;
     case 'admin-table': await renderAdminTable(); break;
+    case 'admin-input-report': await renderDailyInputReport('admin'); break;
     case 'b2b-dashboard': await renderB2BDashboard(); break;
     case 'b2b-calendar': await renderB2BCalendar(); break;
     case 'b2b-analytics': await renderB2BAnalytics(); break;
     case 'b2b-table': await renderB2BTable(); break;
+    case 'b2b-input-report': await renderDailyInputReport('b2b'); break;
     case 'mod-dashboard': await renderModDashboard(); break;
     case 'mod-calendar': await renderModCalendar(); break;
     case 'mod-tasks': await renderModTasks(); break;
     case 'mod-analytics': await renderModAnalytics(); break;
     case 'mod-notifications': await renderModNotifications(); break;
     case 'mod-leads': await renderModLeads(); break;
+    case 'mod-host-target': await renderModHostTarget(); break;
+    case 'mod-mkt-report': await renderMktDashboard(); break;
     case 'guest-dashboard': await renderGuestDashboard(); break;
     case 'guest-tasks': await renderGuestTasks(); break;
+    case 'guest-mkt-dashboard': await renderMktDashboard(); break;
     case 'host-dashboard': await renderHostDashboard(); break;
     case 'host-calendar': await renderHostCalendar(); break;
     case 'host-input': await renderHostInput(); break;
@@ -1119,7 +1136,11 @@ async function renderAdminCalendar() {
   document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;"><div class="card"><div class="card-header"><div><div class="card-title">Kalender Iklan & Leads – Admin</div><div class="card-subtitle">Klik tanggal untuk input & lihat leads</div></div></div><div id="adminCalWrap">${buildCalendarHTML(currentCalMonth, currentCalYear, leadsMap, adsMap, 'admin', 'adminCal')}</div></div></div>`;
 }
 window.adminCalPrevMonth = async () => { currentCalMonth--; if (currentCalMonth < 0) { currentCalMonth = 11; currentCalYear--; } await renderAdminCalendar(); };
-window.adminCalNextMonth = async () => { currentCalMonth++; if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; } await renderAdminCalendar(); };window.adminCalClickDay = async (dateStr) => { await showDayModal(dateStr, 'admin'); };
+window.adminCalNextMonth = async () => { currentCalMonth++; if (currentCalMonth > 11) { currentCalMonth = 0; currentCalYear++; } await renderAdminCalendar(); };
+window.adminCalClickDay = async (dateStr) => {
+  if (currentUser && currentUser.role === 'admin') { await showCalendarDayAdModal(dateStr, 'admin'); }
+  else { await showDayModal(dateStr, 'admin'); }
+};
 
 async function showDayModal(dateStr, role) {
   const leads = await getLeadsForDate(dateStr, role);
@@ -1146,6 +1167,57 @@ async function getAdsForDate(dateStr) {
 }
 function getFollowupClass(s) { const f = FOLLOWUP_STATUSES.find(x => x.value === s); return f ? f.cls : 'fu-pending'; }
 function getFollowupLabel(s) { const f = FOLLOWUP_STATUSES.find(x => x.value === s); return f ? f.label : 'Baru Masuk'; }
+
+// New: Calendar day click for admin/b2b - show ad info only + redirect to Input Report
+async function showCalendarDayAdModal(dateStr, role) {
+  const ads = await getAdsForDate(dateStr);
+  const dateObj = new Date(dateStr + 'T00:00:00');
+  const dayName = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][dateObj.getDay()];
+  const dateDisplay = `${dayName}, ${dateObj.getDate()} ${MONTHS[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+  const holiday = HOLIDAYS_2026[dateStr];
+  const todayStr = new Date().toISOString().slice(0,10);
+  const isFuture = dateStr > todayStr;
+  const hasAds = ads.length > 0;
+  const relevantAds = ads.filter(a => a.target_role === role || a.target_role === 'all');
+  const modalId = 'calDayAdModal';
+  showModal(modalId, `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="fas fa-calendar-day" style="color:var(--gold);margin-right:8px;"></i>${dateDisplay}</div>
+        ${holiday ? `<div style="color:var(--red);font-size:0.78rem;margin-top:4px;"><i class="fas fa-flag"></i> ${holiday}</div>` : ''}
+      </div>
+      <button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:20px;">
+        <div style="font-family:var(--font-ui);font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;"><i class="fas fa-bullhorn"></i> Iklan Aktif (${relevantAds.length})</div>
+        ${relevantAds.length === 0 ? `<div class="text-muted text-sm">Tidak ada iklan untuk kamu pada tanggal ini.</div>` :
+          relevantAds.map(a => `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:10px;margin-bottom:8px;">
+              <div style="width:36px;height:36px;border-radius:10px;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;"><i class="fas fa-bullhorn" style="color:var(--gold);font-size:0.85rem;"></i></div>
+              <div style="flex:1;">
+                <div style="font-size:0.9rem;font-weight:600;">${a.theme || '-'}</div>
+                <div style="font-size:0.72rem;color:var(--light-gray);margin-top:2px;">Kategori: <span class="tag" style="background:rgba(201,168,76,0.12);color:var(--gold);padding:1px 8px;">${a.category}</span></div>
+              </div>
+            </div>
+          `).join('')}
+      </div>
+      ${!isFuture && relevantAds.length > 0 ? `
+        <div style="background:linear-gradient(135deg,rgba(201,168,76,0.1),rgba(255,107,157,0.06));border:1px solid rgba(201,168,76,0.3);border-radius:12px;padding:18px;text-align:center;">
+          <div style="font-family:var(--font-display);font-size:1.1rem;color:var(--white);margin-bottom:8px;">Leads untuk tanggal ini wajib diisi!</div>
+          <div style="font-size:0.8rem;color:var(--light-gray);margin-bottom:14px;">Klik tombol di bawah untuk input laporan harian leads.</div>
+          <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="closeModal('${modalId}');navigateTo('${role}-input-report');">
+            <i class="fas fa-keyboard"></i> Buka Input Report Harian
+          </button>
+        </div>
+      ` : isFuture ? `
+        <div style="padding:14px;background:rgba(76,140,224,0.06);border:1px solid rgba(76,140,224,0.2);border-radius:10px;font-size:0.82rem;color:var(--blue);">
+          <i class="fas fa-info-circle"></i> Tanggal ini belum tiba. Kamu bisa input leads saat hari-H.
+        </div>
+      ` : `<div class="text-muted text-sm">Tidak ada iklan untuk tanggal ini.</div>`}
+    </div>
+  `, 'modal-md');
+}
 
 let leadsInputQueue = [], leadsInputCurrent = 0, leadsInputTotal = 0, leadsInputDate = '', leadsInputRole = '';
 async function startLeadsInput(dateStr, role) {
@@ -1233,7 +1305,10 @@ async function renderB2BDashboard() {
 }
 window.b2bCalPrevMonth = async () => { currentB2BMonth--; if (currentB2BMonth < 0) { currentB2BMonth = 11; currentB2BYear--; } await renderB2BCalendar(); };
 window.b2bCalNextMonth = async () => { currentB2BMonth++; if (currentB2BMonth > 11) { currentB2BMonth = 0; currentB2BYear++; } await renderB2BCalendar(); };
-window.b2bCalClickDay = async (dateStr) => { await showDayModal(dateStr, 'b2b'); };
+window.b2bCalClickDay = async (dateStr) => {
+  if (currentUser && currentUser.role === 'b2b') { await showCalendarDayAdModal(dateStr, 'b2b'); }
+  else { await showDayModal(dateStr, 'b2b'); }
+};
 async function renderB2BCalendar() {
   if (currentUser && currentUser.role === 'b2b') {
     return renderB2BCalendarEnhanced();
@@ -2839,8 +2914,53 @@ async function renderHostInput() {
 
   const submitted = (existingReports||[]).filter(r => r.status === 'pending').slice(0, 10);
 
+  // Load task notifications from moderator
+  let hostTaskNotifs = [];
+  if (db) {
+    const { data: tnData } = await db.from('notifications').select('*')
+      .or(`target_role.eq.host,target_role.eq.all`)
+      .order('created_at', { ascending: false }).limit(15);
+    hostTaskNotifs = (tnData || []).filter(n => !n.target_user || n.target_user === hu);
+  }
+  const unreadHostTasks = hostTaskNotifs.filter(n => !n.is_read).length;
+  const taskBadgeKey = `hostInputNotifBadge_${hu}_${todayStr}`;
+  if (unreadHostTasks > 0 && !localStorage.getItem(taskBadgeKey)) {
+    const taskBadge = document.getElementById('taskBadge_host-input');
+    if (taskBadge) { taskBadge.style.display = 'flex'; taskBadge.textContent = unreadHostTasks; }
+  }
+  // Mark as opened when page is viewed
+  localStorage.setItem(taskBadgeKey, '1');
+  const taskBadgeEl = document.getElementById('taskBadge_host-input');
+  if (taskBadgeEl) taskBadgeEl.style.display = 'none';
+
+  const taskNotifsHTML = hostTaskNotifs.length > 0 ? `
+    <div class="card" style="margin-bottom:20px;border-color:rgba(155,89,182,0.3);">
+      <div class="card-header">
+        <div>
+          <div class="card-title" style="color:var(--purple);"><i class="fas fa-tasks"></i> Notifikasi dari Moderator ${unreadHostTasks > 0 ? `<span style="background:rgba(155,89,182,0.2);padding:2px 8px;border-radius:10px;font-size:0.78rem;">${unreadHostTasks} baru</span>` : ''}</div>
+          <div class="card-subtitle">Pesan & tugas dari moderator</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;">
+        ${hostTaskNotifs.slice(0,6).map(n => `
+          <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:${n.is_read?'rgba(255,255,255,0.02)':'rgba(155,89,182,0.07)'};border-radius:8px;border:1px solid ${n.is_read?'rgba(255,255,255,0.05)':'rgba(155,89,182,0.2)'};">
+            <div style="width:30px;height:30px;border-radius:50%;background:${n.icon_bg||'rgba(201,168,76,0.15)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fas ${n.icon||'fa-bell'}" style="color:${n.icon_color||'var(--gold)'};font-size:0.75rem;"></i>
+            </div>
+            <div style="flex:1;">
+              <div style="font-size:0.82rem;font-weight:600;">${n.title}</div>
+              <div style="font-size:0.76rem;color:var(--light-gray);margin-top:2px;">${n.message}</div>
+              <div style="font-size:0.63rem;color:var(--gray2);margin-top:4px;">${new Date(n.created_at).toLocaleString('id-ID')}</div>
+            </div>
+            ${!n.is_read ? `<div style="width:7px;height:7px;border-radius:50%;background:var(--purple);flex-shrink:0;margin-top:4px;"></div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>` : '';
+
   document.getElementById('pageContent').innerHTML = `
     <div style="animation:fadeIn 0.4s ease;">
+      ${taskNotifsHTML}
       ${overdueWarning}
       ${now24Warning}
 
@@ -3910,6 +4030,407 @@ window.deleteHostSchedule = async (id) => {
   showToast('Jadwal dihapus', 'success');
   renderModHostSchedule();
 };
+
+/* =========================================================
+   NEW FEATURE: MODERATOR UPDATE TARGET HOST
+   ========================================================= */
+async function renderModHostTarget() {
+  // Read current targets from HOST_USERS (in-memory) + allow mod to update via Supabase host_targets table
+  // Fallback: use a simple local config table
+  let hostTargets = {};
+  if (db) {
+    const { data } = await db.from('host_targets').select('*');
+    if (data && data.length > 0) {
+      data.forEach(t => { hostTargets[t.host_user] = t; });
+    }
+  }
+
+  const hostRows = Object.entries(HOST_USERS).map(([key, cfg]) => {
+    const saved = hostTargets[key];
+    const currentTarget = saved ? saved.monthly_target : cfg.target;
+    return { key, cfg, currentTarget };
+  });
+
+  document.getElementById('pageContent').innerHTML = `
+    <div style="animation:fadeIn 0.4s ease;">
+      ${buildLoginGreetingBanner('Moderator','moderator')}
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title"><i class="fas fa-bullseye" style="color:var(--purple);"></i> Update Target Host Live</div>
+            <div class="card-subtitle">Set target GMV bulanan untuk setiap host</div>
+          </div>
+        </div>
+        <div style="display:grid;gap:20px;">
+          ${hostRows.map(({key, cfg, currentTarget}) => `
+            <div style="background:linear-gradient(135deg,rgba(255,107,157,0.07),rgba(201,168,76,0.04));border:1px solid rgba(255,107,157,0.2);border-radius:var(--radius);padding:24px;">
+              <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+                <div style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#FF6B9D,var(--gold));display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:1.5rem;color:white;font-weight:700;">${cfg.initial}</div>
+                <div>
+                  <div style="font-family:var(--font-display);font-size:1.3rem;font-weight:600;">${cfg.name}</div>
+                  <div style="font-size:0.75rem;color:var(--light-gray);">Host Live</div>
+                </div>
+                <div style="margin-left:auto;text-align:right;">
+                  <div style="font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--light-gray);">Target Saat Ini</div>
+                  <div style="font-family:var(--font-display);font-size:1.4rem;color:var(--gold);">${fmtIDRShort(currentTarget)}</div>
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:12px;">
+                <label class="form-label">Target GMV Baru (Rp)</label>
+                <input type="number" class="form-input" id="hostTarget_${key}" placeholder="misal: 40000000" value="${currentTarget}" min="0" step="1000000">
+              </div>
+              <div class="form-group" style="margin-bottom:12px;">
+                <label class="form-label">Catatan (opsional)</label>
+                <input type="text" class="form-input" id="hostTargetNote_${key}" placeholder="Alasan perubahan target...">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="saveHostTarget('${key}')">
+                <i class="fas fa-save"></i> Update Target ${cfg.name}
+              </button>
+            </div>
+          `).join('')}
+        </div>
+        <div class="gold-line"></div>
+        <div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:16px;font-size:0.8rem;color:var(--light-gray);">
+          <i class="fas fa-info-circle" style="color:var(--gold);"></i>
+          Perubahan target akan langsung berlaku dan host akan menerima notifikasi.
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+window.saveHostTarget = async (hostKey) => {
+  const newTarget = parseInt(document.getElementById(`hostTarget_${hostKey}`).value);
+  const note = document.getElementById(`hostTargetNote_${hostKey}`)?.value?.trim() || '';
+  if (!newTarget || newTarget < 0) { showToast('Masukkan target yang valid!', 'error'); return; }
+  const cfg = HOST_USERS[hostKey];
+  if (!cfg) { showToast('Host tidak ditemukan!', 'error'); return; }
+  // Update in-memory
+  HOST_USERS[hostKey].target = newTarget;
+  if (db) {
+    // Upsert to host_targets table
+    const { error } = await db.from('host_targets').upsert([{
+      host_user: hostKey,
+      monthly_target: newTarget,
+      notes: note,
+      updated_at: new Date().toISOString()
+    }], { onConflict: 'host_user' });
+    if (error) { showToast('Gagal update target: ' + error.message, 'error'); return; }
+    // Send notification to host
+    await db.from('notifications').insert([{
+      title: '🎯 Target Diperbarui!',
+      message: `Moderator mengupdate target bulananmu menjadi ${fmtIDRShort(newTarget)}${note ? ' – '+note : ''}. Semangat!`,
+      target_role: 'host', target_user: hostKey,
+      icon: 'fa-bullseye', icon_bg: 'rgba(201,168,76,0.15)', icon_color: 'var(--gold)',
+      is_read: false, created_at: new Date().toISOString()
+    }]);
+  }
+  showToast(`Target ${cfg.name} diupdate ke ${fmtIDRShort(newTarget)}!`, 'success');
+  await renderModHostTarget();
+};
+
+/* =========================================================
+   NEW FEATURE: DAILY INPUT REPORT (ADMIN & B2B)
+   - Calendar-based lead input with task notifications
+   ========================================================= */
+
+// Track unread task notif count per role per nav id
+let inputReportTaskCounts = {};
+
+async function checkInputReportTaskBadge(role) {
+  // Check if there are ads today (i.e. user should input leads) but hasn't yet
+  if (!db || !currentUser) return;
+  const todayStr = new Date().toISOString().slice(0,10);
+  const { data: ads } = await db.from('ads').select('*').eq('ad_date', todayStr);
+  const hasAdsToday = ads && ads.length > 0 && ads.some(a => a.target_role === role || a.target_role === 'all');
+  if (!hasAdsToday) return;
+  const { data: leads } = await db.from('leads').select('id').eq('role', role).eq('lead_date', todayStr);
+  const hasLeads = leads && leads.length > 0;
+  // Check if user already opened the badge
+  const storedKey = `inputReportBadge_${role}_${todayStr}`;
+  const alreadyOpened = localStorage.getItem(storedKey);
+  const navId = `${role}-input-report`;
+  const badge = document.getElementById(`taskBadge_${navId}`);
+  if (hasAdsToday && !hasLeads && !alreadyOpened) {
+    inputReportTaskCounts[navId] = 1;
+    if (badge) { badge.style.display = 'flex'; badge.textContent = '!'; }
+  } else {
+    if (badge) badge.style.display = 'none';
+  }
+}
+
+async function renderDailyInputReport(role) {
+  // Clear badge when opened
+  const todayStr = new Date().toISOString().slice(0,10);
+  const storedKey = `inputReportBadge_${role}_${todayStr}`;
+  localStorage.setItem(storedKey, '1');
+  const navId = `${role}-input-report`;
+  const badge = document.getElementById(`taskBadge_${navId}`);
+  if (badge) badge.style.display = 'none';
+
+  // Also check host-input badge for host role
+  if (currentUser && currentUser.role === 'host') {
+    const hostKey = `hostInputBadge_${currentUser.hostUser}_${todayStr}`;
+    localStorage.setItem(hostKey, '1');
+    updateHostInputBadge(0);
+  }
+
+  const today = new Date();
+  const todayYMD = today.toISOString().slice(0,10);
+  const month = today.getMonth();
+  const year = today.getFullYear();
+
+  // Load all ads (for calendar display), leads for this month, task notifications
+  const [allAds, leads] = await Promise.all([
+    getAds(),
+    getLeads(role)
+  ]);
+  // Load task notifications (from moderator)
+  let taskNotifs = [];
+  if (db) {
+    const { data: tnData } = await db.from('notifications').select('*')
+      .or(`target_role.eq.${role},target_role.eq.all`)
+      .order('created_at', { ascending: false }).limit(20);
+    taskNotifs = (tnData || []).filter(n => !n.is_read || true); // show recent
+  }
+  const unreadTasks = taskNotifs.filter(n => !n.is_read).length;
+
+  // Build per-date report status
+  const leadsMap = groupLeadsByDate(leads);
+  const adsMap = {};
+  allAds.forEach(a => {
+    if (a.target_role === role || a.target_role === 'all') {
+      if (!adsMap[a.ad_date]) adsMap[a.ad_date] = [];
+      adsMap[a.ad_date].push(a);
+    }
+  });
+
+  // Build calendar for current month - only show ads, allow leads input on ad days
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  let calHtml = `<div class="calendar-header">
+    <button class="btn btn-secondary btn-sm" disabled><i class="fas fa-chevron-left"></i></button>
+    <div class="calendar-month-title">${MONTHS[month]} ${year}</div>
+    <button class="btn btn-secondary btn-sm" disabled><i class="fas fa-chevron-right"></i></button>
+  </div><div class="calendar-grid">`;
+  calHtml += ['Min','Sen','Sel','Rab','Kam','Jum','Sab'].map(d=>`<div class="cal-day-label">${d}</div>`).join('');
+  for (let i=0;i<firstDay;i++) calHtml += `<div class="cal-day empty"></div>`;
+  for (let d=1;d<=daysInMonth;d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = dateStr === todayYMD;
+    const isPast = dateStr < todayYMD;
+    const isFuture = dateStr > todayYMD;
+    const holiday = HOLIDAYS_2026[dateStr];
+    const dow = new Date(year, month, d).getDay();
+    const dayAds = adsMap[dateStr] || [];
+    const dayLeads = leadsMap[dateStr] || [];
+    const hasAds = dayAds.length > 0;
+    const hasLeads = dayLeads.length > 0;
+    const isLocked = isPast && hasAds && !hasLeads; // missed
+    const isFilled = hasAds && hasLeads;
+    const canInput = (isToday || isPast) && hasAds && !isFuture;
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (dow === 0 || !!holiday) cls += ' sunday';
+    if (!!holiday) cls += ' national-holiday';
+    let indicator = '';
+    if (hasAds) indicator += `<div class="day-dot dot-ad"></div>`;
+    if (hasLeads) indicator += `<div class="day-dot dot-leads"></div>`;
+    // Color coding
+    let extraStyle = '';
+    if (isFilled) extraStyle = 'border-color:rgba(76,175,125,0.4);background:rgba(76,175,125,0.05);';
+    else if (isLocked) extraStyle = 'border-color:rgba(224,82,82,0.4);background:rgba(224,82,82,0.04);';
+    else if (isToday && hasAds && !hasLeads) extraStyle = 'border-color:var(--gold);';
+    const adBadge = hasAds ? dayAds.slice(0,2).map(a=>`<span class="ad-type-badge badge-product" style="font-size:0.5rem;padding:1px 5px;">${a.theme||a.category}</span>`).join('') : '';
+    const lockIcon = isLocked ? `<div style="position:absolute;top:4px;right:4px;font-size:0.6rem;color:var(--red);">🔒</div>` : '';
+    const checkIcon = isFilled ? `<div style="position:absolute;top:4px;right:4px;font-size:0.6rem;color:var(--green);">✓</div>` : '';
+    const clickable = hasAds ? `onclick="showDailyInputReportModal('${dateStr}','${role}')"` : '';
+    calHtml += `<div class="${cls}" ${clickable} style="position:relative;${hasAds?'cursor:pointer;':''};${extraStyle}" title="${holiday||dateStr}">
+      <div class="day-num">${d}</div>
+      <div class="day-indicators">${indicator}</div>
+      ${adBadge}
+      ${isFilled ? checkIcon : lockIcon}
+      ${holiday ? `<div class="holiday-label">${holiday}</div>` : ''}
+    </div>`;
+  }
+  calHtml += '</div>';
+
+  document.getElementById('pageContent').innerHTML = `
+    <div style="animation:fadeIn 0.4s ease;">
+      ${buildLoginGreetingBanner(role==='admin'?'Admin':'Sales B2B', role)}
+
+      ${unreadTasks > 0 ? `
+      <div class="report-deadline-warning" style="margin-bottom:16px;">
+        <div style="width:36px;height:36px;border-radius:10px;background:rgba(224,139,76,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="fas fa-bell" style="color:var(--orange);"></i></div>
+        <div>
+          <div style="font-family:var(--font-ui);font-size:0.85rem;font-weight:600;color:var(--orange);">Ada ${unreadTasks} notifikasi dari Moderator!</div>
+          <div style="font-size:0.78rem;color:var(--light-gray);margin-top:2px;">Cek pesan dari moderator di bawah ini.</div>
+        </div>
+      </div>` : ''}
+
+      <!-- Task / Notif from Moderator -->
+      ${taskNotifs.length > 0 ? `
+      <div class="card" style="margin-bottom:20px;border-color:rgba(155,89,182,0.3);">
+        <div class="card-header">
+          <div><div class="card-title" style="color:var(--purple);"><i class="fas fa-tasks"></i> Notifikasi dari Moderator</div>
+          <div class="card-subtitle">${taskNotifs.length} pesan terbaru</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;max-height:240px;overflow-y:auto;">
+          ${taskNotifs.slice(0,8).map(n => `
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:${n.is_read?'rgba(255,255,255,0.02)':'rgba(155,89,182,0.07)'};border-radius:8px;border:1px solid ${n.is_read?'rgba(255,255,255,0.05)':'rgba(155,89,182,0.25)'};">
+              <div style="width:32px;height:32px;border-radius:50%;background:${n.icon_bg||'rgba(201,168,76,0.15)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fas ${n.icon||'fa-bell'}" style="color:${n.icon_color||'var(--gold)'};font-size:0.8rem;"></i>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:0.85rem;font-weight:600;">${n.title}</div>
+                <div style="font-size:0.78rem;color:var(--light-gray);margin-top:2px;">${n.message}</div>
+                <div style="font-size:0.65rem;color:var(--gray2);margin-top:4px;">${new Date(n.created_at).toLocaleString('id-ID')}</div>
+              </div>
+              ${!n.is_read ? `<div style="width:8px;height:8px;border-radius:50%;background:var(--purple);flex-shrink:0;margin-top:4px;"></div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Calendar -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div>
+            <div class="card-title"><i class="fas fa-calendar-alt" style="color:var(--gold);"></i> Kalender Input Leads – ${MONTHS[month]} ${year}</div>
+            <div class="card-subtitle">Klik tanggal yang ada iklan untuk input / lihat leads. Hari yang ada iklan tapi belum diisi ditandai 🔒</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:0.72rem;color:var(--light-gray);">
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:rgba(76,175,125,0.6);display:inline-block;"></span> Sudah diisi</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:rgba(224,82,82,0.5);display:inline-block;"></span> Terlambat (belum diisi)</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--gold);display:inline-block;"></span> Hari ini (ada iklan)</span>
+        </div>
+        ${calHtml}
+      </div>
+
+      <!-- Summary stats -->
+      <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+        <div class="stat-card"><div class="stat-icon stat-icon-gold"><i class="fas fa-calendar-check"></i></div><div class="stat-value gradient-text">${Object.keys(adsMap).length}</div><div class="stat-label">Hari Ada Iklan</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-green"><i class="fas fa-check-circle"></i></div><div class="stat-value" style="color:var(--green);">${Object.keys(adsMap).filter(d=>leadsMap[d]&&leadsMap[d].length>0).length}</div><div class="stat-label">Sudah Diisi</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-red"><i class="fas fa-lock"></i></div><div class="stat-value" style="color:var(--red);">${Object.keys(adsMap).filter(d=>d<todayYMD&&(!leadsMap[d]||leadsMap[d].length===0)).length}</div><div class="stat-label">Terlewat</div></div>
+        <div class="stat-card"><div class="stat-icon stat-icon-blue"><i class="fas fa-users"></i></div><div class="stat-value" style="color:var(--blue);">${leads.length}</div><div class="stat-label">Total Leads Bulan Ini</div></div>
+      </div>
+    </div>
+  `;
+}
+
+window.showDailyInputReportModal = async (dateStr, role) => {
+  const [dayLeads, dayAds] = await Promise.all([
+    getLeadsForDate(dateStr, role),
+    getAdsForDate(dateStr)
+  ]);
+  const dateObj = new Date(dateStr + 'T00:00:00');
+  const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const dateDisplay = `${dayNames[dateObj.getDay()]}, ${dateObj.getDate()} ${MONTHS[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+  const todayStr = new Date().toISOString().slice(0,10);
+  const isToday = dateStr === todayStr;
+  const isPast = dateStr < todayStr;
+  const isFuture = dateStr > todayStr;
+  const isLocked = isPast || isToday; // can view but only input on today or when unlocked
+  // Show read-only if already submitted for this date
+  const canInput = !isFuture && (currentUser.role === role || currentUser.role === 'moderator');
+
+  const adsHtml = dayAds.length === 0 ? `<div class="text-muted text-sm">Tidak ada iklan pada tanggal ini.</div>` :
+    dayAds.map(a => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(201,168,76,0.06);border-radius:8px;margin-bottom:6px;">
+      <span class="tag" style="background:rgba(201,168,76,0.15);color:var(--gold);">${a.category}</span>
+      <span style="font-size:0.85rem;font-weight:500;">${a.theme||'-'}</span>
+      <span style="font-size:0.7rem;color:var(--light-gray);margin-left:auto;">${a.target_role}</span>
+    </div>`).join('');
+
+  const leadsHtml = dayLeads.length === 0 ? `<div class="text-muted text-sm" style="padding:12px 0;">Belum ada leads pada tanggal ini.</div>` :
+    `<div style="overflow-x:auto;max-height:200px;">
+      <table>
+        <thead><tr><th>Nama</th><th>WA</th><th>Wilayah</th><th>Kategori</th><th>Status</th><th>Aksi</th></tr></thead>
+        <tbody>${dayLeads.map(l=>`<tr>
+          <td><strong>${l.name}</strong></td>
+          <td><a href="https://wa.me/${(l.phone||'').replace(/\D/g,'')}" target="_blank" style="color:var(--green);">${l.phone}</a></td>
+          <td>${l.city}</td>
+          <td><span class="tag tag-${l.category}">${l.category}</span></td>
+          <td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td>
+          <td>
+            ${canInput ? `<button class="btn btn-secondary btn-sm btn-icon" onclick="showUpdateLeadModal('${l.id}','${dateStr}','${role}')"><i class="fas fa-pen"></i></button>` : ''}
+          </td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  const modalId = 'dailyReportModal';
+  showModal(modalId, `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="fas fa-clipboard-list" style="color:var(--gold);margin-right:8px;"></i>${dateDisplay}</div>
+        <div style="font-size:0.78rem;color:var(--light-gray);margin-top:3px;">${role === 'admin' ? 'Admin' : 'Sales B2B'} · ${dayLeads.length} leads terdaftar</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:16px;">
+        <div style="font-family:var(--font-ui);font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:8px;"><i class="fas fa-bullhorn"></i> Iklan Hari Ini (${dayAds.length})</div>
+        ${adsHtml}
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-family:var(--font-ui);font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);"><i class="fas fa-users" style="color:var(--blue);"></i> Leads (${dayLeads.length})</div>
+          ${canInput ? `<div style="display:flex;gap:8px;align-items:center;">
+            <input type="number" min="1" max="50" id="dailyLeadsCount" class="form-input" style="width:80px;padding:6px 10px;" placeholder="Jml" value="1">
+            <button class="btn btn-primary btn-sm" onclick="startDailyLeadsInput('${dateStr}','${role}')"><i class="fas fa-plus"></i> Input Leads</button>
+          </div>` : ''}
+        </div>
+        ${leadsHtml}
+      </div>
+    </div>
+  `, 'modal-lg');
+};
+
+window.startDailyLeadsInput = (dateStr, role) => {
+  const count = parseInt(document.getElementById('dailyLeadsCount')?.value || 1);
+  if (isNaN(count) || count < 1) { showToast('Masukkan jumlah leads valid', 'error'); return; }
+  leadsInputQueue = []; leadsInputCurrent = 0; leadsInputTotal = count; leadsInputDate = dateStr; leadsInputRole = role;
+  closeModal('dailyReportModal'); showLeadsForm(0);
+};
+
+// Helper: check task badge for host-input
+async function checkHostInputTaskBadge() {
+  if (!currentUser || currentUser.role !== 'host' || !db) return;
+  const todayStr = new Date().toISOString().slice(0,10);
+  const { data: notifs } = await db.from('notifications')
+    .select('*')
+    .or(`target_role.eq.host,target_role.eq.all`)
+    .eq('is_read', false)
+    .order('created_at', { ascending: false }).limit(10);
+  const relevantNotifs = (notifs || []).filter(n => !n.target_user || n.target_user === currentUser.hostUser);
+  const badge = document.getElementById('taskBadge_host-input');
+  const storedKey = `hostInputNotifBadge_${currentUser.hostUser}_${todayStr}`;
+  const alreadyOpened = localStorage.getItem(storedKey);
+  if (relevantNotifs.length > 0 && !alreadyOpened) {
+    if (badge) { badge.style.display = 'flex'; badge.textContent = relevantNotifs.length; }
+  }
+}
+
+/* =========================================================
+   CALENDAR LEADS VIEW (admin/b2b) - Show ad info + Add Leads button
+   Updated: When clicking a day in admin/b2b calendar, show ad info
+   and Add Leads button that redirects to input report page
+   ========================================================= */
+// Override buildCalendarHTMLEnhanced clickDay for admin/b2b to show ad info + redirect
+// This is handled by the existing adminCalClickDay and b2bCalClickDay
+// We update showDayModal to add a shortcut button to the input report page
+const _origShowDayModal = window.showDayModal;
+
+/* =========================================================
+   MODERATOR: Marketing Dashboard (reuse renderMktDashboard)
+   Guest: Marketing Dashboard (reuse renderMktDashboard)
+   Both are handled via renderSection case routing above
+   ========================================================= */
+
+/* =========================================================
+   MARKETING REPORT: renderMktDashboard already shows to guest/mod
+   ========================================================= */
 
 
 /* -----------  MODERATOR: ACC REPORT HOST  ----------- */
