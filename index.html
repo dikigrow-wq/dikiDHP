@@ -883,6 +883,9 @@ function setupSidebar(role) {
       { id: 'mod-host-schedule', icon: 'fas fa-calendar-plus', label: 'Atur Jadwal Live' },
       { id: 'mod-host-reports', icon: 'fas fa-clipboard-check', label: 'ACC Report Harian' },
       { id: 'mod-host-overview', icon: 'fas fa-video', label: 'Performa Host' },
+      { id: 'mod-host-target', icon: 'fas fa-bullseye', label: 'Update Target Host' },
+      { section: 'MARKETING' },
+      { id: 'mod-mkt-dashboard', icon: 'fas fa-chart-bar', label: 'Dashboard Marketing' },
       { section: 'MANAJEMEN' },
       { id: 'mod-notifications', icon: 'fas fa-bell', label: 'Kirim Notifikasi', badge: true },
       { id: 'mod-leads', icon: 'fas fa-users', label: 'Semua Data Leads' },
@@ -894,6 +897,8 @@ function setupSidebar(role) {
       { id: 'admin-analytics', icon: 'fas fa-chart-bar', label: 'Analitik' },
       { section: 'DATA' },
       { id: 'admin-table', icon: 'fas fa-table', label: 'Data Customers' },
+      { section: 'LAPORAN' },
+      { id: 'admin-report', icon: 'fas fa-file-pen', label: 'Input Report Harian', badge: false },
     ],
     b2b: [
       { section: 'UTAMA' },
@@ -902,11 +907,15 @@ function setupSidebar(role) {
       { id: 'b2b-analytics', icon: 'fas fa-chart-bar', label: 'Analitik B2B' },
       { section: 'DATA' },
       { id: 'b2b-table', icon: 'fas fa-table', label: 'Data Customers B2B' },
+      { section: 'LAPORAN' },
+      { id: 'b2b-report', icon: 'fas fa-file-pen', label: 'Input Report Harian', badge: false },
     ],
     guest: [
       { section: 'LIHAT' },
       { id: 'guest-dashboard', icon: 'fas fa-chart-pie', label: 'Analitik Semua Role' },
       { id: 'guest-tasks', icon: 'fas fa-list-check', label: 'Semua Task' },
+      { section: 'MARKETING' },
+      { id: 'guest-mkt-dashboard', icon: 'fas fa-chart-bar', label: 'Dashboard Marketing' },
     ],
     host: [
       { section: 'UTAMA' },
@@ -943,9 +952,12 @@ function navigateTo(sectionId) {
     'mod-dashboard':'Dashboard Semua Role','mod-calendar':'Kelola Iklan & Kalender','mod-tasks':'Semua Task',
     'mod-analytics':'Analitik Semua Role','mod-notifications':'Kirim Notifikasi','mod-leads':'Semua Data Leads',
     'mod-host-schedule':'Atur Jadwal Live Host','mod-host-reports':'ACC Report Host Live','mod-host-overview':'Performa Host Live',
+    'mod-host-target':'Update Target Host Live','mod-mkt-dashboard':'Dashboard Marketing',
     'admin-dashboard':'Dashboard Admin','admin-calendar':'Kalender Leads Admin','admin-analytics':'Analitik Admin',
-    'admin-table':'Data Customers Admin','b2b-dashboard':'Dashboard B2B','b2b-calendar':'Kalender Leads B2B',
-    'b2b-analytics':'Analitik B2B','b2b-table':'Data Customers B2B','guest-dashboard':'Analitik & Overview','guest-tasks':'Semua Task',
+    'admin-table':'Data Customers Admin','admin-report':'Input Report Harian',
+    'b2b-dashboard':'Dashboard B2B','b2b-calendar':'Kalender Leads B2B',
+    'b2b-analytics':'Analitik B2B','b2b-table':'Data Customers B2B','b2b-report':'Input Report Harian',
+    'guest-dashboard':'Analitik & Overview','guest-tasks':'Semua Task','guest-mkt-dashboard':'Dashboard Marketing',
     'host-dashboard':'Dashboard Host Live','host-calendar':'Kalender Live','host-input':'Input Report Harian','host-target':'Target Bulanan',
     'mkt-dashboard':'Dashboard Marketing','mkt-budget':'Budget Marketing Bulanan','mkt-kol':'KOL & Affiliate Bulanan',
   };
@@ -966,18 +978,23 @@ async function renderSection(sectionId) {
     case 'admin-calendar': await renderAdminCalendar(); break;
     case 'admin-analytics': await renderAdminAnalytics(); break;
     case 'admin-table': await renderAdminTable(); break;
+    case 'admin-report': await renderRoleReport('admin'); break;
     case 'b2b-dashboard': await renderB2BDashboard(); break;
     case 'b2b-calendar': await renderB2BCalendar(); break;
     case 'b2b-analytics': await renderB2BAnalytics(); break;
     case 'b2b-table': await renderB2BTable(); break;
+    case 'b2b-report': await renderRoleReport('b2b'); break;
     case 'mod-dashboard': await renderModDashboard(); break;
     case 'mod-calendar': await renderModCalendar(); break;
     case 'mod-tasks': await renderModTasks(); break;
     case 'mod-analytics': await renderModAnalytics(); break;
     case 'mod-notifications': await renderModNotifications(); break;
     case 'mod-leads': await renderModLeads(); break;
+    case 'mod-host-target': await renderModHostTarget(); break;
+    case 'mod-mkt-dashboard': await renderMktDashboardReadOnly(); break;
     case 'guest-dashboard': await renderGuestDashboard(); break;
     case 'guest-tasks': await renderGuestTasks(); break;
+    case 'guest-mkt-dashboard': await renderMktDashboardReadOnly(); break;
     case 'host-dashboard': await renderHostDashboard(); break;
     case 'host-calendar': await renderHostCalendar(); break;
     case 'host-input': await renderHostInput(); break;
@@ -2298,6 +2315,711 @@ window.saveLeadFormEnhanced = async function(index) {
 };
 
 console.log('DHP Creative System Loaded ✨');
+
+/* ============================================================
+   FITUR BARU v12:
+   1. Moderator: Update Target Host Live
+   2. Moderator & Guest: Lihat Dashboard Marketing (Read-only)
+   3. Host: Notif badge dari task moderator
+   4. Admin & B2B: Input Report Harian
+   5. Kalender: Info iklan + tombol Tambah Leads → form lengkap, wajib hari H, auto-lock
+   ============================================================ */
+
+// ── 1. MODERATOR: UPDATE TARGET HOST LIVE ─────────────────────
+async function renderModHostTarget() {
+  const pc = document.getElementById('pageContent');
+  pc.innerHTML = `<div style="animation:fadeIn 0.4s ease;">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><i class="fas fa-bullseye" style="color:var(--gold);"></i> Update Target Host Live</div>
+          <div class="card-subtitle">Atur target GMV bulanan untuk Nina & Sekar</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;padding-top:8px;">
+        ${Object.entries(HOST_USERS).map(([key,val]) => `
+          <div style="background:linear-gradient(135deg,rgba(255,107,157,0.08),rgba(201,168,76,0.04));border:1px solid rgba(255,107,157,0.25);border-radius:14px;padding:24px;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+              <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,rgba(255,107,157,0.3),rgba(224,82,82,0.2));display:flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-weight:700;font-size:1.2rem;color:#FF6B9D;">${val.initial}</div>
+              <div>
+                <div style="font-family:var(--font-display);font-size:1.2rem;font-weight:600;color:var(--white);">${val.name}</div>
+                <div style="font-size:0.72rem;color:var(--light-gray);">Host Live</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Target GMV Saat Ini</label>
+              <div style="font-family:var(--font-display);font-size:1.6rem;font-weight:600;color:var(--gold);margin-bottom:12px;">${fmtIDR(val.target)}</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Target Baru (Rp)</label>
+              <input type="number" class="form-input" id="newTarget_${key}" placeholder="Masukkan nominal target baru" value="${val.target}" min="0" step="1000000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Catatan Perubahan</label>
+              <input type="text" class="form-input" id="targetNote_${key}" placeholder="Alasan/keterangan update target...">
+            </div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="saveHostTarget('${key}')">
+              <i class="fas fa-save"></i> Simpan Target ${val.name}
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Riwayat Perubahan Target</div></div>
+      <div id="targetHistoryWrap">
+        <div style="text-align:center;padding:20px;color:var(--light-gray);"><i class="fas fa-spinner fa-spin"></i></div>
+      </div>
+    </div>
+  </div>`;
+  // Load history
+  loadTargetHistory();
+}
+
+async function loadTargetHistory() {
+  const el = document.getElementById('targetHistoryWrap');
+  if (!el || !db) return;
+  const { data } = await db.from('host_target_history').select('*').order('created_at', { ascending: false }).limit(20);
+  const rows = data || [];
+  if (rows.length === 0) {
+    el.innerHTML = `<div class="empty-state" style="padding:24px;"><i class="fas fa-history" style="font-size:1.5rem;"></i><p>Belum ada riwayat perubahan target.</p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="table-wrap"><table>
+    <thead><tr><th>Tanggal</th><th>Host</th><th>Target Lama</th><th>Target Baru</th><th>Catatan</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td style="color:var(--light-gray);white-space:nowrap;">${new Date(r.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})}</td>
+      <td><span class="host-name-pill">${HOST_USERS[r.host_user]?.name||r.host_user}</span></td>
+      <td style="color:var(--light-gray);">${fmtIDR(r.old_target)}</td>
+      <td style="color:var(--gold);font-weight:600;">${fmtIDR(r.new_target)}</td>
+      <td style="font-size:0.8rem;color:var(--white2);">${r.note||'-'}</td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+window.saveHostTarget = async (hostKey) => {
+  const newTarget = parseInt(document.getElementById(`newTarget_${hostKey}`).value) || 0;
+  const note = document.getElementById(`targetNote_${hostKey}`).value.trim();
+  if (!newTarget || newTarget < 1000000) {
+    showToast('Target minimal Rp 1.000.000', 'error'); return;
+  }
+  const oldTarget = HOST_USERS[hostKey].target;
+  if (newTarget === oldTarget) {
+    showToast('Target tidak berubah', 'info'); return;
+  }
+  // Update in-memory
+  HOST_USERS[hostKey].target = newTarget;
+  // Save to DB (history)
+  if (db) {
+    await db.from('host_target_history').insert([{
+      host_user: hostKey,
+      old_target: oldTarget,
+      new_target: newTarget,
+      note: note || null,
+      created_at: new Date().toISOString()
+    }]);
+    // Notify host
+    await db.from('notifications').insert([{
+      title: '🎯 Target GMV Diperbarui!',
+      message: `Moderator mengubah target GMV kamu menjadi ${fmtIDR(newTarget)}${note?'. Catatan: '+note:''}. Semangat!`,
+      target_role: 'host', target_user: hostKey,
+      icon: 'fa-bullseye', icon_bg: 'rgba(201,168,76,0.15)', icon_color: '#C9A84C',
+      is_read: false, created_at: new Date().toISOString()
+    }]);
+  }
+  showToast(`Target ${HOST_USERS[hostKey].name} diperbarui ke ${fmtIDR(newTarget)}!`, 'success');
+  renderModHostTarget();
+};
+
+// ── 2. MARKETING DASHBOARD READ-ONLY (Moderator & Guest) ──────
+async function renderMktDashboardReadOnly() {
+  // Reuse marketing state vars but don't show edit buttons
+  const m = currentMktMonth, y = currentMktYear;
+  // We borrow the marketing rendering but wrap it with a read-only indicator
+  const savedRole = currentUser.role;
+  // Temporarily allow read access to marketing render
+  await renderMktDashboard();
+  // Add read-only badge at top
+  const pc = document.getElementById('pageContent');
+  const badge = document.createElement('div');
+  badge.style.cssText = 'background:rgba(76,140,224,0.1);border:1px solid rgba(76,140,224,0.3);border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:16px;animation:fadeIn 0.4s ease;';
+  badge.innerHTML = '<i class="fas fa-eye" style="color:var(--blue);"></i><span style="font-size:0.82rem;color:var(--blue);">Mode Lihat – Kamu bisa melihat data marketing namun tidak bisa mengedit.</span>';
+  pc.firstChild && pc.insertBefore(badge, pc.firstChild);
+}
+
+// ── 3. HOST: NOTIF BADGE TASK DARI MODERATOR ─────────────────
+// Fungsi ini dipanggil saat login dan saat interval notif
+async function checkHostTaskNotifBadge(hostUser) {
+  if (!db || !hostUser) return;
+  const todayStr = new Date().toISOString().slice(0,10);
+  // Cek notif task yang belum dibaca untuk host ini
+  const { data: notifs } = await db.from('notifications')
+    .select('*')
+    .eq('target_role', 'host')
+    .eq('target_user', hostUser)
+    .eq('is_read', false);
+  const taskNotifs = (notifs || []).filter(n =>
+    n.title && (n.title.includes('Jadwal') || n.title.includes('Target') || n.title.includes('Task') || n.title.includes('Report'))
+  );
+  updateHostInputBadge(taskNotifs.length);
+}
+
+// ── 4. ADMIN & B2B: INPUT REPORT HARIAN ─────────────────────
+async function renderRoleReport(role) {
+  const pc = document.getElementById('pageContent');
+  const todayStr = new Date().toISOString().slice(0,10);
+  // Load existing reports
+  const { data: reports } = db ? await db.from('role_reports').select('*').eq('role', role).order('report_date', { ascending: false }).limit(60) : { data: [] };
+  const allReports = reports || [];
+  
+  // Check task notifications for this role
+  let taskNotifs = [];
+  if (db) {
+    const { data: notifs } = await db.from('notifications').select('*').eq('target_role', role).eq('is_read', false);
+    taskNotifs = (notifs || []).filter(n => n.title && (n.title.includes('Task') || n.title.includes('Tugas') || n.title.includes('Leads')));
+  }
+  const taskBanner = taskNotifs.length > 0 ? `
+    <div style="background:linear-gradient(135deg,rgba(201,168,76,0.12),rgba(255,107,157,0.06));border:1px solid rgba(201,168,76,0.4);border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;animation:pulse 2s ease infinite;">
+      <div style="width:40px;height:40px;border-radius:10px;background:rgba(201,168,76,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fas fa-bell" style="color:var(--gold);font-size:1.1rem;"></i>
+      </div>
+      <div style="flex:1;">
+        <div style="font-family:var(--font-ui);font-size:0.8rem;font-weight:700;color:var(--gold);">📋 ${taskNotifs.length} Task dari Moderator</div>
+        <div style="font-size:0.75rem;color:var(--white2);margin-top:3px;">Kamu memiliki task yang perlu diselesaikan. Cek panel notifikasi untuk detailnya.</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="toggleNotifPanel()"><i class="fas fa-bell"></i> Lihat</button>
+    </div>` : '';
+
+  // Build list grouped by date
+  const grouped = {};
+  allReports.forEach(r => { if (!grouped[r.report_date]) grouped[r.report_date] = []; grouped[r.report_date].push(r); });
+  const sortedDates = Object.keys(grouped).sort((a,b)=>b.localeCompare(a));
+
+  pc.innerHTML = `<div style="animation:fadeIn 0.4s ease;">
+    ${taskBanner}
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title"><i class="fas fa-file-pen" style="color:var(--gold);"></i> Input Report Harian – ${role === 'admin' ? 'Admin' : 'Sales B2B'}</div>
+          <div class="card-subtitle">Catat aktivitas harian leads & follow-up kamu</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openRoleReportForm('${role}','${todayStr}')">
+          <i class="fas fa-plus"></i> Tambah Report Hari Ini
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title">Riwayat Report</div><div class="card-subtitle">${allReports.length} entri</div></div>
+      ${allReports.length === 0 ? `<div class="empty-state" style="padding:30px;"><i class="fas fa-file-pen" style="font-size:2rem;"></i><p>Belum ada report. Klik "Tambah Report Hari Ini" untuk mulai.</p></div>` :
+      `<div class="table-wrap"><table>
+        <thead><tr><th>Tanggal</th><th>Nama</th><th>Nama WhatsApp</th><th>Wilayah</th><th>Kategori</th><th>Status Follow-up</th><th>Catatan</th><th>Aksi</th></tr></thead>
+        <tbody>${allReports.map((r,i)=>{
+          const isToday = r.report_date === todayStr;
+          const locked = r.is_locked;
+          return `<tr style="${locked?'opacity:0.8;':''}">
+            <td style="white-space:nowrap;color:${isToday?'var(--gold)':'var(--light-gray)'};">${r.report_date}${isToday?' 🔆':''}</td>
+            <td><strong>${r.name||'-'}</strong></td>
+            <td style="font-size:0.8rem;">${r.wa_name||'-'}</td>
+            <td>${r.city||'-'}</td>
+            <td><span class="tag tag-${r.category||'cold'}">${r.category||'-'}</span></td>
+            <td><span class="followup-tag ${getFollowupClass(r.followup_status)}">${getFollowupLabel(r.followup_status)}</span></td>
+            <td style="font-size:0.78rem;color:var(--light-gray);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.notes||'-'}</td>
+            <td>
+              ${locked ? `<span style="padding:3px 8px;background:rgba(136,136,136,0.15);border:1px solid rgba(136,136,136,0.25);border-radius:6px;font-size:0.65rem;color:var(--light-gray);"><i class="fas fa-lock"></i> Terkunci</span>` :
+              `<button class="btn btn-secondary btn-sm btn-icon" onclick="openEditRoleReport('${r.id}','${role}')"><i class="fas fa-pen"></i></button>
+               <button class="btn btn-danger btn-sm btn-icon" onclick="deleteRoleReport('${r.id}','${role}')"><i class="fas fa-trash"></i></button>`}
+            </td>
+          </tr>`;
+        }).join('')}
+        </tbody></table></div>`}
+    </div>
+  </div>`;
+}
+
+window.openRoleReportForm = async (role, dateStr) => {
+  const todayStr = new Date().toISOString().slice(0,10);
+  if (dateStr > todayStr) {
+    showToast('Tidak bisa isi report untuk tanggal mendatang', 'warning'); return;
+  }
+  // Check if already locked (yesterday & before)
+  const isPast = dateStr < todayStr;
+  if (isPast) {
+    // Check if there's any editable entry
+    const { data } = db ? await db.from('role_reports').select('*').eq('role', role).eq('report_date', dateStr).eq('is_locked', false) : { data: [] };
+    if (!data || data.length === 0) {
+      showToast('Report tanggal tersebut sudah terkunci', 'warning'); return;
+    }
+  }
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const dateLabel = `${dayNames[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  showModal('roleReportModal', `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="fas fa-file-pen" style="color:var(--gold);"></i> Tambah Report Harian</div>
+        <div style="font-size:0.8rem;color:var(--light-gray);margin-top:3px;">${dateLabel}</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('roleReportModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="rr_role" value="${role}">
+      <input type="hidden" id="rr_date" value="${dateStr}">
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Nama <span style="color:var(--red);">*</span></label>
+          <input type="text" class="form-input" id="rr_name" placeholder="Nama leads/kontak">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama WhatsApp <span style="color:var(--red);">*</span></label>
+          <input type="text" class="form-input" id="rr_wa_name" placeholder="Nama di WA">
+        </div>
+      </div>
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Wilayah <span style="color:var(--red);">*</span></label>
+          <input type="text" class="form-input" id="rr_city" placeholder="Kota / Kabupaten">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kategori <span style="color:var(--red);">*</span></label>
+          <select class="form-select" id="rr_category">
+            <option value="">-- Pilih --</option>
+            <option value="cold">Cold</option>
+            <option value="warm">Warm</option>
+            <option value="hot">Hot</option>
+            <option value="closing">Closing</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Status Follow-up <span style="color:var(--red);">*</span></label>
+          <select class="form-select" id="rr_followup">
+            <option value="">-- Pilih --</option>
+            ${FOLLOWUP_STATUSES.map(f=>`<option value="${f.value}">${f.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tanggal</label>
+          <input type="date" class="form-input" id="rr_tanggal" value="${dateStr}" max="${todayStr}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Catatan</label>
+        <textarea class="form-textarea" id="rr_notes" placeholder="Catatan follow-up, hasil percakapan, dll..." style="min-height:80px;"></textarea>
+      </div>
+      <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--gold);">
+        <i class="fas fa-lock" style="font-size:0.7rem;"></i> Report akan otomatis terkunci saat tengah malam hari ini.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('roleReportModal')">Batal</button>
+      <button class="btn btn-primary" onclick="saveRoleReport()"><i class="fas fa-save"></i> Simpan Report</button>
+    </div>
+  `, 'modal-lg');
+};
+
+window.saveRoleReport = async () => {
+  const role = document.getElementById('rr_role').value;
+  const dateStr = document.getElementById('rr_date').value;
+  const name = document.getElementById('rr_name').value.trim();
+  const waName = document.getElementById('rr_wa_name').value.trim();
+  const city = document.getElementById('rr_city').value.trim();
+  const category = document.getElementById('rr_category').value;
+  const followup = document.getElementById('rr_followup').value;
+  const tanggal = document.getElementById('rr_tanggal').value || dateStr;
+  const notes = document.getElementById('rr_notes').value.trim();
+
+  if (!name || !waName || !city || !category || !followup) {
+    showToast('Semua field wajib (*) harus diisi!', 'error'); return;
+  }
+  const todayStr = new Date().toISOString().slice(0,10);
+  const payload = {
+    role, report_date: tanggal, name, wa_name: waName,
+    city, category, followup_status: followup, notes: notes || null,
+    is_locked: tanggal < todayStr,
+    created_at: new Date().toISOString()
+  };
+  if (!db) { showToast('Database tidak terhubung', 'error'); return; }
+  const { error } = await db.from('role_reports').insert([payload]);
+  if (error) { showToast('Gagal simpan: ' + error.message, 'error'); return; }
+  showToast('Report berhasil disimpan!', 'success');
+  closeModal('roleReportModal');
+  renderRoleReport(role);
+};
+
+window.openEditRoleReport = async (id, role) => {
+  const { data } = await db.from('role_reports').select('*').eq('id', id).limit(1);
+  const r = data && data[0]; if (!r) return;
+  if (r.is_locked) { showToast('Report ini sudah terkunci', 'warning'); return; }
+  const todayStr = new Date().toISOString().slice(0,10);
+  showModal('roleReportEditModal', `
+    <div class="modal-header">
+      <div><div class="modal-title">Edit Report – ${r.report_date}</div></div>
+      <button class="modal-close" onclick="closeModal('roleReportEditModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="rre_id" value="${id}">
+      <input type="hidden" id="rre_role" value="${role}">
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group"><label class="form-label">Nama *</label><input type="text" class="form-input" id="rre_name" value="${r.name||''}"></div>
+        <div class="form-group"><label class="form-label">Nama WhatsApp *</label><input type="text" class="form-input" id="rre_wa_name" value="${r.wa_name||''}"></div>
+      </div>
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group"><label class="form-label">Wilayah *</label><input type="text" class="form-input" id="rre_city" value="${r.city||''}"></div>
+        <div class="form-group"><label class="form-label">Kategori *</label>
+          <select class="form-select" id="rre_category">
+            ${['cold','warm','hot','closing'].map(c=>`<option value="${c}" ${r.category===c?'selected':''}>${c.charAt(0).toUpperCase()+c.slice(1)}</option>`).join('')}
+          </select></div>
+      </div>
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group"><label class="form-label">Status Follow-up *</label>
+          <select class="form-select" id="rre_followup">
+            ${FOLLOWUP_STATUSES.map(f=>`<option value="${f.value}" ${r.followup_status===f.value?'selected':''}>${f.label}</option>`).join('')}
+          </select></div>
+        <div class="form-group"><label class="form-label">Catatan</label><textarea class="form-textarea" id="rre_notes" style="min-height:60px;">${r.notes||''}</textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('roleReportEditModal')">Batal</button>
+      <button class="btn btn-primary" onclick="updateRoleReport()"><i class="fas fa-save"></i> Simpan</button>
+    </div>
+  `, 'modal-lg');
+};
+
+window.updateRoleReport = async () => {
+  const id = document.getElementById('rre_id').value;
+  const role = document.getElementById('rre_role').value;
+  const name = document.getElementById('rre_name').value.trim();
+  const waName = document.getElementById('rre_wa_name').value.trim();
+  const city = document.getElementById('rre_city').value.trim();
+  const category = document.getElementById('rre_category').value;
+  const followup = document.getElementById('rre_followup').value;
+  const notes = document.getElementById('rre_notes').value.trim();
+  if (!name || !waName || !city || !category || !followup) { showToast('Semua field wajib harus diisi!', 'error'); return; }
+  const { error } = await db.from('role_reports').update({ name, wa_name: waName, city, category, followup_status: followup, notes: notes||null, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) { showToast('Gagal: '+error.message, 'error'); return; }
+  showToast('Report diperbarui!', 'success');
+  closeModal('roleReportEditModal');
+  renderRoleReport(role);
+};
+
+window.deleteRoleReport = async (id, role) => {
+  if (!confirm('Hapus report ini?')) return;
+  await db.from('role_reports').delete().eq('id', id);
+  showToast('Report dihapus', 'info');
+  renderRoleReport(role);
+};
+
+// Auto-lock role_reports at midnight
+setInterval(async () => {
+  if (!db || !currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'b2b')) return;
+  const now = new Date();
+  if (now.getHours() === 0 && now.getMinutes() === 0) {
+    const yesterday = new Date(now); yesterday.setDate(yesterday.getDate()-1);
+    const yStr = yesterday.toISOString().slice(0,10);
+    await db.from('role_reports').update({ is_locked: true }).eq('is_locked', false).lt('report_date', now.toISOString().slice(0,10));
+  }
+}, 60000);
+
+// ── 5. KALENDER: INFO IKLAN + TOMBOL TAMBAH LEADS ─────────────
+// Override buildCalendarHTMLEnhanced agar kalender lead hanya tampilkan info iklan,
+// dan ada tombol "Tambah Leads" yang mengarah ke form lengkap.
+// Form leads baru dengan kolom: Nama, Nama WA, Wilayah, Kategori, Status Follow-up, Tanggal, Catatan
+// Wajib diisi hari H, auto-lock setelah hari H.
+
+window.openLeadsFormFromCalendar = async (dateStr, role) => {
+  const todayStr = new Date().toISOString().slice(0,10);
+  if (dateStr > todayStr) {
+    showToast('Leads hanya bisa diisi pada hari H', 'warning'); return;
+  }
+  // Check ada iklan di hari ini
+  const hasAd = await hasAdForRoleOnDate(dateStr, role);
+  if (!hasAd) {
+    showToast('🔒 Belum ada iklan dari moderator untuk tanggal ini.', 'warning'); return;
+  }
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const dateLabel = `${dayNames[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  
+  // Check if already locked
+  const isPast = dateStr < todayStr;
+  if (isPast) {
+    showToast('Report tanggal ini sudah terkunci', 'warning'); return;
+  }
+
+  // Task notif banner for this role
+  let taskBannerHtml = '';
+  if (db) {
+    const { data: tNotifs } = await db.from('notifications').select('*').eq('target_role', role).eq('is_read', false);
+    const taskCount = (tNotifs||[]).filter(n=>n.title&&(n.title.includes('Task')||n.title.includes('Tugas')||n.title.includes('Leads'))).length;
+    if (taskCount > 0) {
+      taskBannerHtml = `<div style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <i class="fas fa-bell" style="color:var(--gold);"></i>
+        <span style="font-size:0.8rem;color:var(--gold);">📋 ${taskCount} task dari moderator menunggu. Pastikan kamu isi leads hari ini!</span>
+      </div>`;
+    }
+  }
+
+  showModal('leadsCalModal', `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title"><i class="fas fa-user-plus" style="color:var(--gold);"></i> Tambah Leads – ${dateLabel}</div>
+        <div style="font-size:0.8rem;color:var(--gold);margin-top:3px;">Wajib diisi hari H · Terkunci otomatis tengah malam</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('leadsCalModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      ${taskBannerHtml}
+      <input type="hidden" id="lc_role" value="${role}">
+      <input type="hidden" id="lc_date" value="${dateStr}">
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Nama <span style="color:var(--red);">*</span></label>
+          <input type="text" class="form-input" id="lc_name" placeholder="Nama leads/kontak">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama WhatsApp <span style="color:var(--red);">*</span></label>
+          <input type="text" class="form-input" id="lc_wa_name" placeholder="Nama di WhatsApp">
+        </div>
+      </div>
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Wilayah <span style="color:var(--red);">*</span></label>
+          <input type="text" class="form-input" id="lc_city" placeholder="Kota / Kabupaten">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kategori <span style="color:var(--red);">*</span></label>
+          <select class="form-select" id="lc_category">
+            <option value="">-- Pilih --</option>
+            <option value="cold">Cold</option>
+            <option value="warm">Warm</option>
+            <option value="hot">Hot</option>
+            <option value="closing">Closing</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Status Follow-up <span style="color:var(--red);">*</span></label>
+          <select class="form-select" id="lc_followup">
+            <option value="">-- Pilih --</option>
+            ${FOLLOWUP_STATUSES.map(f=>`<option value="${f.value}">${f.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tanggal</label>
+          <input type="date" class="form-input" id="lc_tanggal" value="${dateStr}" readonly>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Catatan</label>
+        <textarea class="form-textarea" id="lc_notes" placeholder="Catatan follow-up, hasil percakapan, dll..." style="min-height:80px;"></textarea>
+      </div>
+      <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+        <i class="fas fa-lock" style="color:var(--gold);font-size:0.9rem;"></i>
+        <span style="font-size:0.78rem;color:var(--gold);">Kamu bisa tambah 1 leads dulu, lalu tambah lagi nanti di hari yang sama sebelum tengah malam.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('leadsCalModal')">Batal</button>
+      <button class="btn btn-success" onclick="saveLeadsFromCalendar(false)"><i class="fas fa-plus"></i> Simpan & Tambah Lagi</button>
+      <button class="btn btn-primary" onclick="saveLeadsFromCalendar(true)"><i class="fas fa-save"></i> Simpan & Tutup</button>
+    </div>
+  `, 'modal-lg');
+};
+
+window.saveLeadsFromCalendar = async (closeAfter) => {
+  const role = document.getElementById('lc_role').value;
+  const dateStr = document.getElementById('lc_date').value;
+  const name = document.getElementById('lc_name').value.trim();
+  const waName = document.getElementById('lc_wa_name').value.trim();
+  const city = document.getElementById('lc_city').value.trim();
+  const category = document.getElementById('lc_category').value;
+  const followup = document.getElementById('lc_followup').value;
+  const notes = document.getElementById('lc_notes').value.trim();
+
+  if (!name || !waName || !city || !category || !followup) {
+    showToast('Semua field wajib (*) harus diisi!', 'error'); return;
+  }
+  const todayStr = new Date().toISOString().slice(0,10);
+  const payload = {
+    role, lead_date: dateStr, name, city, category,
+    followup_status: followup, notes: notes || null,
+    wa_name: waName,
+    created_at: new Date().toISOString()
+  };
+  if (!db) { showToast('Database tidak terhubung', 'error'); return; }
+  const { error } = await db.from('leads').insert([payload]);
+  if (error) { showToast('Gagal simpan: ' + error.message, 'error'); return; }
+  showToast('Leads berhasil ditambahkan! ✅', 'success');
+
+  if (closeAfter) {
+    closeModal('leadsCalModal');
+    // Refresh calendar
+    if (role === 'admin') renderAdminCalendar();
+    else renderB2BCalendar();
+  } else {
+    // Clear form for another entry
+    document.getElementById('lc_name').value = '';
+    document.getElementById('lc_wa_name').value = '';
+    document.getElementById('lc_city').value = '';
+    document.getElementById('lc_category').value = '';
+    document.getElementById('lc_followup').value = '';
+    document.getElementById('lc_notes').value = '';
+    document.getElementById('lc_name').focus();
+    showToast('Silakan isi leads berikutnya 📋', 'info', 3000);
+  }
+};
+
+// Patch: Saat klik hari di kalender (admin/b2b bukan moderator), tampilkan info iklan + tombol tambah leads
+// Bukan langsung buka form lama showDayModal, tapi panggil showLeadsCalendarDay
+window.showLeadsCalendarDay = async (dateStr, role) => {
+  const todayStr = new Date().toISOString().slice(0,10);
+  const isFuture = dateStr > todayStr;
+  const isPast = dateStr < todayStr;
+  const ads = await getAdsForDate(dateStr);
+  const leads = await getLeadsForDate(dateStr, role);
+  const holiday = HOLIDAYS_2026[dateStr];
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+  const dateDisplay = `${dayNames[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+
+  // Task notif
+  let taskBannerHtml = '';
+  if (db && !isFuture && !isPast) {
+    const { data: tNotifs } = await db.from('notifications').select('*').eq('target_role', role).eq('is_read', false);
+    const taskCount = (tNotifs||[]).filter(n=>n.title&&(n.title.includes('Task')||n.title.includes('Tugas')||n.title.includes('Leads'))).length;
+    if (taskCount > 0) {
+      taskBannerHtml = `<div style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:14px;animation:pulse 2s infinite;">
+        <i class="fas fa-bell" style="color:var(--gold);"></i>
+        <span style="font-size:0.78rem;color:var(--gold);">📋 ${taskCount} task dari Moderator. Jangan lupa isi leads hari ini!</span>
+      </div>`;
+    }
+  }
+
+  const hasAd = ads.length > 0;
+  const roleAds = ads.filter(a => a.target_role === role || a.target_role === 'all');
+  const hasRoleAd = roleAds.length > 0;
+
+  let lockBlock = '';
+  if (isFuture) {
+    lockBlock = `<div style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+      <i class="fas fa-calendar-clock" style="color:var(--gold);"></i>
+      <span style="font-size:0.82rem;color:var(--gold);">Leads hanya bisa diisi pada hari H.</span>
+    </div>`;
+  } else if (!hasRoleAd) {
+    lockBlock = `<div style="background:rgba(224,82,82,0.1);border:1px solid rgba(224,82,82,0.3);border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+      <i class="fas fa-lock" style="color:var(--red);"></i>
+      <span style="font-size:0.82rem;color:var(--red);">Belum ada iklan moderator untuk tanggal ini.</span>
+    </div>`;
+  } else if (isPast) {
+    lockBlock = `<div style="background:rgba(136,136,136,0.1);border:1px solid rgba(136,136,136,0.2);border-radius:8px;padding:10px 14px;display:flex;gap:10px;align-items:center;margin-bottom:12px;">
+      <i class="fas fa-lock" style="color:var(--light-gray);"></i>
+      <span style="font-size:0.82rem;color:var(--light-gray);">Tanggal ini sudah lewat. Leads terkunci.</span>
+    </div>`;
+  }
+
+  const adsHtml = roleAds.length === 0 ? `<div class="text-muted text-sm" style="padding:10px 0;">Tidak ada iklan untuk peran kamu pada tanggal ini.</div>` :
+    `<div style="display:flex;flex-direction:column;gap:8px;">
+      ${roleAds.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:8px;">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(201,168,76,0.15);display:flex;align-items:center;justify-content:center;"><i class="fas fa-bullhorn" style="color:var(--gold);font-size:0.85rem;"></i></div>
+        <div style="flex:1;">
+          <div style="font-size:0.85rem;font-weight:500;">${a.theme||'Iklan'}</div>
+          <div style="font-size:0.7rem;color:var(--light-gray);">${a.category} · ${a.target_role}</div>
+        </div>
+      </div>`).join('')}
+    </div>`;
+
+  const leadsHtml = leads.length === 0 ? `<div class="text-muted text-sm" style="padding:10px 0;">Belum ada leads pada tanggal ini.</div>` :
+    `<div class="table-wrap"><table>
+      <thead><tr><th>Nama</th><th>Nama WA</th><th>Wilayah</th><th>Kategori</th><th>Follow-up</th></tr></thead>
+      <tbody>${leads.map(l=>`<tr>
+        <td><strong>${l.name}</strong></td>
+        <td style="font-size:0.8rem;">${l.wa_name||'-'}</td>
+        <td>${l.city}</td>
+        <td><span class="tag tag-${l.category}">${l.category}</span></td>
+        <td><span class="followup-tag ${getFollowupClass(l.followup_status)}">${getFollowupLabel(l.followup_status)}</span></td>
+      </tr>`).join('')}
+      </tbody></table></div>`;
+
+  const canAddLeads = !isFuture && !isPast && hasRoleAd;
+
+  showModal('leadsCalDayModal', `
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">${dateDisplay}</div>
+        ${holiday?`<div style="color:var(--red);font-size:0.78rem;margin-top:4px;"><i class="fas fa-flag"></i> ${holiday}</div>`:''}
+      </div>
+      <button class="modal-close" onclick="closeModal('leadsCalDayModal')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      ${taskBannerHtml}
+      ${lockBlock}
+
+      <div style="margin-bottom:16px;">
+        <div style="font-family:var(--font-ui);font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);margin-bottom:10px;"><i class="fas fa-bullhorn" style="color:var(--gold);"></i> &nbsp;Iklan (${roleAds.length})</div>
+        ${adsHtml}
+      </div>
+
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-family:var(--font-ui);font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--light-gray);"><i class="fas fa-users" style="color:var(--blue);"></i> &nbsp;Leads (${leads.length})</div>
+          ${canAddLeads ? `<button class="btn btn-primary btn-sm" onclick="closeModal('leadsCalDayModal');openLeadsFormFromCalendar('${dateStr}','${role}');">
+            <i class="fas fa-user-plus"></i> Tambah Leads
+          </button>` : ''}
+        </div>
+        ${leadsHtml}
+      </div>
+    </div>
+  `, 'modal-lg');
+};
+
+// Patch adminCalClickDay and b2bCalClickDay to use new showLeadsCalendarDay
+window.adminCalClickDay = async (dateStr) => {
+  if (currentUser && currentUser.role === 'admin') {
+    await showLeadsCalendarDay(dateStr, 'admin');
+  } else {
+    await showDayModal(dateStr, 'admin');
+  }
+};
+window.b2bCalClickDay = async (dateStr) => {
+  if (currentUser && currentUser.role === 'b2b') {
+    await showLeadsCalendarDay(dateStr, 'b2b');
+  } else {
+    await showDayModal(dateStr, 'b2b');
+  }
+};
+
+// ── HOST: Badge notif dari task moderator (check on notif load) ─
+const _origLoadNotifications = loadNotifications;
+window.loadNotifications = async function() {
+  await _origLoadNotifications();
+  if (currentUser && currentUser.role === 'host' && currentUser.hostUser) {
+    await checkHostTaskNotifBadge(currentUser.hostUser);
+  }
+};
+
+// ── Tambahan: notif badge di nav report harian untuk admin & b2b ─
+async function checkRoleReportTaskBadge(role) {
+  if (!db) return;
+  const { data: notifs } = await db.from('notifications').select('id').eq('target_role', role).eq('is_read', false);
+  const taskNotifs = (notifs || []);
+  const navEl = document.getElementById('nav-admin-report') || document.getElementById('nav-b2b-report');
+  if (navEl && taskNotifs.length > 0) {
+    let badge = navEl.querySelector('.nav-badge-report-role');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'nav-badge-report-role nav-badge';
+      badge.style.background = 'var(--red)';
+      navEl.appendChild(badge);
+    }
+    badge.textContent = taskNotifs.length;
+    badge.style.display = '';
+  }
+}
+
+console.log('v12 new features loaded 🚀');
 
 /* ============================================================
    HOST LIVE MODULE — Nina (target 40jt) & Sekar (target 20jt)
