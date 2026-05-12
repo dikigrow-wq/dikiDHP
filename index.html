@@ -1756,25 +1756,38 @@ async function renderGuestTasksView(roleFilter) {
   }
 
   if (roleFilter === 'all' || roleFilter === 'host') {
-    const tableTitle = roleFilter === 'host' ? 'Task Host Live – Report Harian' : 'Task Host Live';
-    tableHTML += `<div class="card" style="${roleFilter==='all'?'margin-top:20px;':''}border-color:rgba(255,107,157,0.2);">
-      <div class="card-header">
-        <div><div class="card-title" style="color:#FF6B9D;"><i class="fas fa-video"></i> ${tableTitle}</div><div class="card-subtitle">${approvedReports.length} report ACC dari ${hostReports.length} total</div></div>
-      </div>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>Host</th><th>Tanggal</th><th>Sesi</th><th>Jam Live</th><th>GMV</th><th>Piece</th><th>Status</th></tr></thead><tbody>
-      ${hostReports.length===0 ? `<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--light-gray);">Belum ada data report</td></tr>` :
-      hostReports.map((r,i)=>`<tr>
-        <td style="color:var(--light-gray);">${i+1}</td>
-        <td><span class="host-name-pill"><i class="fas fa-video" style="font-size:0.6rem;"></i> ${r.host_user==='nina'?'Nina':'Sekar'}</span></td>
-        <td style="white-space:nowrap;color:var(--light-gray);">${r.report_date}</td>
-        <td style="text-align:center;">${r.sessions||0}</td>
-        <td style="color:var(--gold);font-family:var(--font-ui);font-size:0.82rem;">${minutesToHM(r.total_minutes||0)}</td>
-        <td style="color:#FF6B9D;font-family:var(--font-ui);font-size:0.82rem;">${fmtIDRShort(r.total_gmv||0)}</td>
-        <td style="text-align:center;">${r.total_pieces||0}</td>
-        <td><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='rejected'?'status-rejected':'status-pending'}">${r.status==='approved'?'✓ ACC':r.status==='rejected'?'✗ Tolak':'⏳ Pending'}</span></td>
-      </tr>`).join('')}
-      </tbody></table></div>
-    </div>`;
+    // Split reports per host
+    const ninaReports  = hostReports.filter(r => r.host_user === 'nina');
+    const sekarReports = hostReports.filter(r => r.host_user === 'sekar');
+    const ninaApproved  = ninaReports.filter(r => r.status === 'approved').length;
+    const sekarApproved = sekarReports.filter(r => r.status === 'approved').length;
+
+    const buildHostTable = (hostKey, hostName, reports, approvedCount) => {
+      return `<div class="card" style="${roleFilter==='all'?'margin-top:20px;':'margin-top:0;'}border-color:rgba(255,107,157,0.2);">
+        <div class="card-header">
+          <div>
+            <div class="card-title" style="color:#FF6B9D;"><i class="fas fa-video"></i> Task Host Live – ${hostName}</div>
+            <div class="card-subtitle">${approvedCount} report ACC dari ${reports.length} total</div>
+          </div>
+          <span class="host-name-pill"><i class="fas fa-video" style="font-size:0.6rem;"></i> ${hostName}</span>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Tanggal</th><th>Sesi</th><th>Jam Live</th><th>GMV</th><th>Piece</th><th>Status</th></tr></thead><tbody>
+        ${reports.length===0 ? `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--light-gray);">Belum ada data report untuk ${hostName}</td></tr>` :
+        reports.map((r,i)=>`<tr>
+          <td style="color:var(--light-gray);">${i+1}</td>
+          <td style="white-space:nowrap;color:var(--light-gray);">${r.report_date}</td>
+          <td style="text-align:center;">${r.sessions||0}</td>
+          <td style="color:var(--gold);font-family:var(--font-ui);font-size:0.82rem;">${minutesToHM(r.total_minutes||0)}</td>
+          <td style="color:#FF6B9D;font-family:var(--font-ui);font-size:0.82rem;">${fmtIDRShort(r.total_gmv||0)}</td>
+          <td style="text-align:center;">${r.total_pieces||0}</td>
+          <td><span class="status-pill ${r.status==='approved'?'status-approved':r.status==='rejected'?'status-rejected':'status-pending'}">${r.status==='approved'?'✓ ACC':r.status==='rejected'?'✗ Tolak':'⏳ Pending'}</span></td>
+        </tr>`).join('')}
+        </tbody></table></div>
+      </div>`;
+    };
+
+    tableHTML += buildHostTable('nina',  'Nina',  ninaReports,  ninaApproved);
+    tableHTML += buildHostTable('sekar', 'Sekar', sekarReports, sekarApproved);
   }
 
   document.getElementById('pageContent').innerHTML = `<div style="animation:fadeIn 0.4s ease;">
